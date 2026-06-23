@@ -1,19 +1,21 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Minus, Plus, Sparkles } from 'lucide-react';
+import { Hexagon, ArrowRight } from 'lucide-react';
 
 export default function Home() {
   return (
     <div className="flex flex-col min-h-screen bg-white overflow-hidden relative">
       {/* Top Navbar */}
       <header className="flex h-[100px] items-center justify-between px-8 md:px-16 lg:px-24 pt-4 z-20 relative">
-        <Link href="/" className="flex items-center gap-2 font-extrabold text-[22px] text-slate-800 tracking-tight">
-          <Sparkles className="h-7 w-7 text-slate-800 fill-slate-800" />
+        <Link href="/" className="flex items-center gap-3 font-extrabold text-[24px] text-slate-800 tracking-tight">
+          <div className="bg-[#1C1A3A] text-white p-2 rounded-[12px]">
+            <Hexagon className="h-6 w-6 fill-current" />
+          </div>
           CampusSync
         </Link>
         <div className="flex items-center gap-4">
-          <Link href="/login" className="text-[14px] font-bold text-slate-800 hover:text-indigo-600 transition-colors flex items-center gap-2">
-            Main Menu <Minus className="h-5 w-5 stroke-[3px]" />
+          <Link href="/login" className="text-[15px] font-bold text-slate-500 hover:text-slate-800 transition-colors">
+            Log in
           </Link>
         </div>
       </header>
@@ -32,15 +34,15 @@ export default function Home() {
             CampusSync provides an integrated university platform to help you manage your classes, grades, and campus life. Trusted by over 40,000 students.
           </p>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <Link href="/login">
-              <Button className="bg-[#F0F4FA] hover:bg-[#E2E8F0] text-slate-800 font-bold h-14 px-8 rounded-[14px] text-[15px] shadow-none">
-                Try Demo
+              <Button className="bg-[#1C1A3A] hover:bg-[#2D2B52] text-white font-bold h-14 px-10 rounded-[14px] text-[15px] transition-all">
+                Log In
               </Button>
             </Link>
             <Link href="/signup">
-              <Button className="bg-[#1C64F2] hover:bg-blue-700 text-white h-14 w-14 rounded-[14px] shadow-lg shadow-blue-500/20 p-0 flex items-center justify-center">
-                <Plus className="h-6 w-6 stroke-[3px]" />
+              <Button className="bg-[#F0F4FA] hover:bg-[#E2E8F0] text-slate-800 font-bold h-14 px-10 rounded-[14px] text-[15px] shadow-none transition-all">
+                Sign Up <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
           </div>
