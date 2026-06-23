@@ -4,7 +4,7 @@ import { Hexagon, ArrowRight } from 'lucide-react';
 
 export default function Home() {
   return (
-    <div className="flex flex-col min-h-screen bg-white overflow-hidden relative">
+    <div className="flex flex-col h-screen bg-white overflow-hidden relative">
       {/* Top Navbar */}
       <header className="flex h-[100px] items-center justify-between px-8 md:px-16 lg:px-24 pt-4 z-20 relative">
         <Link href="/" className="flex items-center gap-3 font-extrabold text-[24px] text-slate-800 tracking-tight">
@@ -13,11 +13,6 @@ export default function Home() {
           </div>
           CampusSync
         </Link>
-        <div className="flex items-center gap-4">
-          <Link href="/login" className="text-[15px] font-bold text-slate-500 hover:text-slate-800 transition-colors">
-            Log in
-          </Link>
-        </div>
       </header>
 
       {/* Main Content */}
