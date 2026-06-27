@@ -8,34 +8,12 @@ import {
   Tag, BarChart2, BookOpen, ExternalLink, MoreHorizontal, User, MapPin, Layers,
 } from 'lucide-react';
 import {
-  ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid,
+  ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Legend,
   Tooltip as RechartsTooltip, ResponsiveContainer,
 } from 'recharts';
+import { buildGpaChartData, DEMO_GRADE_ROWS } from '@/lib/student-grades';
 
-const chartData = [
-  { id: '0',  label: '1st Semester', yourGPA: 2.5, avgGPA: 2.25 },
-  { id: '1',  label: '1st Semester', yourGPA: 2.5, avgGPA: 2.25 },
-  { id: '2',  label: '1st Semester', yourGPA: 2.3, avgGPA: 2.72 },
-  { id: '3',  label: '1st Semester', yourGPA: 2.3, avgGPA: 2.72 },
-  { id: '4',  label: '2nd Semester', yourGPA: 2.7, avgGPA: 2.15 },
-  { id: '5',  label: '2nd Semester', yourGPA: 2.7, avgGPA: 2.15 },
-  { id: '6',  label: '2nd Semester', yourGPA: 2.33, avgGPA: 2.49 },
-  { id: '7',  label: '2nd Semester', yourGPA: 2.33, avgGPA: 2.49 },
-  { id: '8',  label: '3rd Semester', yourGPA: 1.9, avgGPA: 2.25 },
-  { id: '9',  label: '3rd Semester', yourGPA: 1.9, avgGPA: 2.25 },
-  { id: '10', label: '4th Semester', yourGPA: 2.5, avgGPA: 2.45 },
-  { id: '11', label: '4th Semester', yourGPA: 2.5, avgGPA: 2.45 },
-  { id: '12', label: '4th Semester', yourGPA: 2.85, avgGPA: 2.75 },
-  { id: '13', label: '4th Semester', yourGPA: 2.85, avgGPA: 2.75 },
-  { id: '14', label: '5th Semester', yourGPA: 3.2, avgGPA: 2.55 },
-  { id: '15', label: '5th Semester', yourGPA: 3.2, avgGPA: 2.55 },
-  { id: '16', label: '5th Semester', yourGPA: 3.2, avgGPA: 2.9 },
-  { id: '17', label: '5th Semester', yourGPA: 3.2, avgGPA: 2.9 },
-  { id: '18', label: '6th Semester', yourGPA: 3.5, avgGPA: 3.35 },
-  { id: '19', label: '6th Semester', yourGPA: 3.5, avgGPA: 3.35 },
-  { id: '20', label: '6th Semester', yourGPA: 3.85, avgGPA: 3.35 },
-  { id: '21', label: '6th Semester', yourGPA: 3.85, avgGPA: 3.35 },
-];
+const chartData = buildGpaChartData(DEMO_GRADE_ROWS);
 
 const DEMO_SCHEDULE = [
   {
@@ -69,15 +47,6 @@ const PAYMENTS = [
   { id: 'PID - 331828', category: 'Internship Program 2025', date: '24 August 2024', status: 'Completed' as const },
   { id: 'PID - 331827', category: '5th Semester Tuition', date: '20 May 2024', status: 'Completed' as const },
 ];
-
-const SEMESTER_TICKS: Record<string, string> = {
-  '1': '1st Semester',
-  '5': '2nd Semester',
-  '9': '3rd Semester',
-  '13': '4th Semester',
-  '17': '5th Semester',
-  '21': '6th Semester',
-};
 
 function Panel({ className = '', children }: { className?: string; children: React.ReactNode }) {
   return (
@@ -258,23 +227,23 @@ export default function Dashboard() {
                 <option>All Semesters</option>
               </select>
             </div>
-            <div className="px-3 sm:px-5 pb-5 h-[220px] sm:h-[250px]">
+            <div className="px-3 sm:px-5 pb-5 h-[260px] sm:h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={chartData} margin={{ top: 10, right: 8, left: 0, bottom: 0 }}>
+                <ComposedChart data={chartData} margin={{ top: 4, right: 12, left: 0, bottom: 4 }}>
                   <defs>
                     <linearGradient id="colorYourGpa" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.18} />
                       <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical horizontal stroke="#f1f5f9" />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis
-                    dataKey="id"
+                    dataKey="shortLabel"
                     axisLine={false}
                     tickLine={false}
+                    interval={0}
                     tick={{ fontSize: 10, fill: '#94a3b8' }}
-                    dy={10}
-                    tickFormatter={(val) => SEMESTER_TICKS[val] || ''}
+                    dy={8}
                   />
                   <YAxis
                     axisLine={false}
@@ -282,10 +251,37 @@ export default function Dashboard() {
                     tick={{ fontSize: 10, fill: '#94a3b8' }}
                     domain={[1.0, 4.0]}
                     ticks={[1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0]}
+                    width={28}
                   />
-                  <RechartsTooltip content={<CustomTooltip />} cursor={{ stroke: '#fbcfe8', strokeWidth: 1, strokeDasharray: '3 3' }} />
-                  <Line type="linear" dataKey="avgGPA" stroke="#f43f5e" strokeWidth={2} strokeDasharray="6 4" dot={false} activeDot={{ r: 5, fill: '#f43f5e', strokeWidth: 0 }} />
-                  <Area type="linear" dataKey="yourGPA" stroke="#8b5cf6" strokeWidth={2.5} fill="url(#colorYourGpa)" activeDot={{ r: 6, strokeWidth: 3, fill: '#8b5cf6', stroke: '#fff' }} dot={false} />
+                  <Legend
+                    verticalAlign="top"
+                    align="right"
+                    iconType="line"
+                    iconSize={12}
+                    wrapperStyle={{ fontSize: 11, paddingBottom: 8 }}
+                    formatter={(value) => (value === 'yourGPA' ? 'Your GPA' : 'Average GPA')}
+                  />
+                  <RechartsTooltip content={<CustomTooltip />} cursor={{ stroke: '#e2e8f0', strokeWidth: 1 }} />
+                  <Line
+                    type="monotone"
+                    dataKey="avgGPA"
+                    name="avgGPA"
+                    stroke="#f43f5e"
+                    strokeWidth={2}
+                    strokeDasharray="6 4"
+                    dot={{ r: 4, fill: '#f43f5e', strokeWidth: 0 }}
+                    activeDot={{ r: 6, fill: '#f43f5e', strokeWidth: 0 }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="yourGPA"
+                    name="yourGPA"
+                    stroke="#8b5cf6"
+                    strokeWidth={2.5}
+                    fill="url(#colorYourGpa)"
+                    dot={{ r: 4, fill: '#8b5cf6', strokeWidth: 2, stroke: '#fff' }}
+                    activeDot={{ r: 6, strokeWidth: 2, fill: '#8b5cf6', stroke: '#fff' }}
+                  />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>

@@ -15,8 +15,11 @@ import { cn } from '@/lib/utils';
 import { authInputClassName } from '@/lib/auth-ui';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
-const SHOW_DEMO_CREDENTIALS = process.env.NEXT_PUBLIC_SHOW_DEMO_CREDENTIALS === 'true';
+const SHOW_DEMO_CREDENTIALS =
+  process.env.NODE_ENV === 'development' ||
+  process.env.NEXT_PUBLIC_SHOW_DEMO_CREDENTIALS === 'true';
 const DEMO_STAFF_EMAIL = process.env.NEXT_PUBLIC_STAFF_EMAIL || 'staff@campus.sync';
+const DEMO_PASSWORD = 'password123';
 
 type LoginMode = 'student' | 'organization';
 
@@ -178,15 +181,20 @@ export default function LoginPage() {
                 </p>
               </div>
             ) : (
-              <div className="mt-6 rounded-2xl border border-border bg-sidebar p-4">
+              <div className="mt-6 rounded-2xl border border-border bg-sidebar p-4 space-y-3">
                 <p className="text-[12px] text-muted-foreground leading-relaxed">
                   <span className="font-bold text-foreground">Organization login:</span> use the email and password issued by your campus administrator.
                 </p>
                 {SHOW_DEMO_CREDENTIALS && (
-                  <p className="text-[12px] text-muted-foreground mt-2 font-mono">
-                    Local demo — Email: <span className="font-semibold text-foreground">{DEMO_STAFF_EMAIL}</span>
-                    {' · '}Password: <span className="font-semibold text-foreground">password123</span>
-                  </p>
+                  <div className="rounded-xl border border-border bg-card px-3 py-2.5 text-[12px] leading-relaxed">
+                    <p className="font-bold text-foreground mb-1.5">Demo login</p>
+                    <p className="text-muted-foreground">
+                      Email: <span className="font-semibold text-foreground">{DEMO_STAFF_EMAIL}</span>
+                    </p>
+                    <p className="text-muted-foreground">
+                      Password: <span className="font-semibold text-foreground">{DEMO_PASSWORD}</span>
+                    </p>
+                  </div>
                 )}
               </div>
             )}

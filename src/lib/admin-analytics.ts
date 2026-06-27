@@ -209,6 +209,10 @@ export function filterAnalyticsBySection(data: AdminAnalytics, section: string |
       return {
         stats: data.stats,
         recentStudents: data.recentStudents,
+        enrollmentTrend: data.enrollmentTrend,
+        teacherStatus: data.teacherStatus,
+        assignmentAnalytics: data.assignmentAnalytics.slice(0, 6),
+        attendanceBySubject: data.attendanceBySubject.slice(0, 6),
       };
     case 'students':
       return {

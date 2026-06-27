@@ -41,6 +41,7 @@ const SEMESTER_ORDINALS = ['1st', '2nd', '3rd', '4th', '5th', '6th'];
 export type GpaChartPoint = {
   id: string;
   label: string;
+  shortLabel: string;
   yourGPA: number;
   avgGPA: number;
 };
@@ -79,33 +80,15 @@ export function buildGpaChartData(grades: { grade: string; credits: number; seme
     semesterGpas = [...earlier, ...actual];
   }
 
-  const chart: GpaChartPoint[] = [];
-  let id = 0;
-
-  semesterGpas.slice(0, 6).forEach((sem, semIdx) => {
-    const pointCount = semIdx === semesterGpas.length - 1 ? 2 : 4;
-    for (let i = 0; i < pointCount; i++) {
-      const jitter = (i - (pointCount - 1) / 2) * 0.08;
-      const yourGPA = Math.min(4, Math.max(1, Number((sem.gpa + jitter).toFixed(2))));
-      const avgGPA = Math.min(4, Math.max(1, Number((yourGPA * 0.88 + 0.25).toFixed(2))));
-      chart.push({
-        id: String(id++),
-        label: `${SEMESTER_ORDINALS[semIdx]} Semester`,
-        yourGPA,
-        avgGPA,
-      });
-    }
+  return semesterGpas.slice(0, 6).map((sem, semIdx) => {
+    const yourGPA = Math.min(4, Math.max(1, Number(sem.gpa.toFixed(2))));
+    const avgGPA = Math.min(4, Math.max(1, Number((yourGPA * 0.88 + 0.25).toFixed(2))));
+    return {
+      id: String(semIdx),
+      label: `${SEMESTER_ORDINALS[semIdx]} Semester`,
+      shortLabel: SEMESTER_ORDINALS[semIdx],
+      yourGPA,
+      avgGPA,
+    };
   });
-
-  return chart;
-}
-
-export function getGpaChartTicks(chart: GpaChartPoint[]): Record<string, string> {
-  const ticks: Record<string, string> = {};
-  for (const point of chart) {
-    if (!Object.values(ticks).includes(point.label)) {
-      ticks[point.id] = point.label;
-    }
-  }
-  return ticks;
 }

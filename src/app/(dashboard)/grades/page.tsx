@@ -9,10 +9,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Award, BookOpen, TrendingUp, Star } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid,
+  ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Legend,
   Tooltip as RechartsTooltip, ResponsiveContainer,
 } from 'recharts';
-import { computeStats, getGpaChartTicks, type GpaChartPoint } from '@/lib/student-grades';
+import { computeStats, type GpaChartPoint } from '@/lib/student-grades';
 import { useChartTheme } from '@/hooks/useChartTheme';
 
 type GradeRow = {
@@ -35,18 +35,18 @@ function ChartTooltip({
   if (!active || !payload?.length) return null;
   const data = payload[0].payload;
   return (
-    <div className="bg-[#FFFDF8] p-4 border border-amber-100/60 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] min-w-[170px]">
-      <p className="text-[12px] font-bold text-slate-800 mb-3">{data.label}</p>
+    <div className="bg-card p-4 border border-border rounded-xl shadow-lg min-w-[170px]">
+      <p className="text-xs font-bold text-foreground mb-3">{data.label}</p>
       <div className="flex flex-col gap-2.5">
         {payload.map((entry, index) => (
           <div key={index} className="flex items-center justify-between text-[11px] gap-4">
             <div className="flex items-center gap-2">
               <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: entry.color }} />
-              <span className="text-slate-500 font-medium">
+              <span className="text-muted-foreground font-medium">
                 {entry.name === 'yourGPA' ? 'Your GPA' : 'Average GPA'}
               </span>
             </div>
-            <span className="font-extrabold text-slate-900">{entry.value}</span>
+            <span className="font-extrabold text-foreground">{entry.value}</span>
           </div>
         ))}
       </div>
@@ -80,8 +80,6 @@ export default function GradesPage() {
     () => computeStats(grades, selectedSemester || undefined),
     [grades, selectedSemester]
   );
-
-  const chartTicks = useMemo(() => getGpaChartTicks(chartData), [chartData]);
 
   const filtered = grades.filter((g) => !selectedSemester || g.semester === selectedSemester);
 
@@ -161,23 +159,23 @@ export default function GradesPage() {
             </span>
           </div>
         </CardHeader>
-        <CardContent className="px-2 sm:px-5 pb-5 pt-2 h-[220px] sm:h-[250px]">
+        <CardContent className="px-2 sm:px-5 pb-5 pt-2 h-[260px] sm:h-[280px]">
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={chartData} margin={{ top: 10, right: 8, left: 0, bottom: 0 }}>
+            <ComposedChart data={chartData} margin={{ top: 4, right: 12, left: 0, bottom: 4 }}>
               <defs>
                 <linearGradient id="gradesYourGpa" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.18} />
                   <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical horizontal stroke="var(--chart-grid)" />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--chart-grid)" />
               <XAxis
-                dataKey="id"
+                dataKey="shortLabel"
                 axisLine={false}
                 tickLine={false}
+                interval={0}
                 tick={{ fontSize: 10, fill: axis }}
-                dy={10}
-                tickFormatter={(val) => chartTicks[val] || ''}
+                dy={8}
               />
               <YAxis
                 axisLine={false}
@@ -185,10 +183,37 @@ export default function GradesPage() {
                 tick={{ fontSize: 10, fill: axis }}
                 domain={[1.0, 4.0]}
                 ticks={[1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0]}
+                width={28}
               />
-              <RechartsTooltip content={<ChartTooltip />} cursor={{ stroke: '#fbcfe8', strokeWidth: 1, strokeDasharray: '3 3' }} />
-              <Line type="linear" dataKey="avgGPA" stroke="#f43f5e" strokeWidth={2} strokeDasharray="6 4" dot={false} activeDot={{ r: 5, fill: '#f43f5e', strokeWidth: 0 }} />
-              <Area type="linear" dataKey="yourGPA" stroke="#8b5cf6" strokeWidth={2.5} fill="url(#gradesYourGpa)" activeDot={{ r: 6, strokeWidth: 3, fill: '#8b5cf6', stroke: '#fff' }} dot={false} />
+              <Legend
+                verticalAlign="top"
+                align="right"
+                iconType="line"
+                iconSize={12}
+                wrapperStyle={{ fontSize: 11, paddingBottom: 8 }}
+                formatter={(value) => (value === 'yourGPA' ? 'Your GPA' : 'Average GPA')}
+              />
+              <RechartsTooltip content={<ChartTooltip />} cursor={{ stroke: 'var(--chart-grid)', strokeWidth: 1 }} />
+              <Line
+                type="monotone"
+                dataKey="avgGPA"
+                name="avgGPA"
+                stroke="#f43f5e"
+                strokeWidth={2}
+                strokeDasharray="6 4"
+                dot={{ r: 4, fill: '#f43f5e', strokeWidth: 0 }}
+                activeDot={{ r: 6, fill: '#f43f5e', strokeWidth: 0 }}
+              />
+              <Area
+                type="monotone"
+                dataKey="yourGPA"
+                name="yourGPA"
+                stroke="#8b5cf6"
+                strokeWidth={2.5}
+                fill="url(#gradesYourGpa)"
+                dot={{ r: 4, fill: '#8b5cf6', strokeWidth: 2, stroke: 'var(--card)' }}
+                activeDot={{ r: 6, strokeWidth: 2, fill: '#8b5cf6', stroke: 'var(--card)' }}
+              />
             </ComposedChart>
           </ResponsiveContainer>
         </CardContent>
