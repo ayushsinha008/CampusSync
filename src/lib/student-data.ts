@@ -17,11 +17,11 @@ export async function ensureStudentEnrollments(studentId: string) {
 }
 
 export async function getSubjectsWithAttendance(studentId: string) {
-  await ensureStudentEnrollments(studentId);
-
-  const subjects = await Subject.find().sort({ createdAt: -1 }).lean();
   const records = await StudentAttendance.find({ studentId }).lean();
+  if (records.length === 0) return [];
 
+  const subjectIds = records.map((r) => r.subjectId);
+  const subjects = await Subject.find({ _id: { $in: subjectIds } }).sort({ createdAt: -1 }).lean();
   const recordMap = new Map(records.map((r) => [r.subjectId.toString(), r]));
 
   return subjects.map((subject) => {

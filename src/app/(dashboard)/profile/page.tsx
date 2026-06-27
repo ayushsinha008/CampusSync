@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
@@ -36,7 +38,8 @@ type ProfileData = {
   semester?: number;
   createdAt?: string;
   entryToken?: string;
-  entryUrl?: string;
+  entryUrl?: string | null;
+  qrReady?: boolean;
 };
 
 function InfoRow({
@@ -75,6 +78,10 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [rollNumber, setRollNumber] = useState('');
+  const [branch, setBranch] = useState('');
+  const [semester, setSemester] = useState('');
   const [entryUrl, setEntryUrl] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -84,10 +91,13 @@ export default function ProfilePage() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || 'Failed to load profile');
         setProfile(data);
-        if (data.entryToken && typeof window !== 'undefined') {
-          setEntryUrl(`${window.location.origin}/entry/${data.entryToken}`);
-        } else if (data.entryUrl) {
+        setRollNumber(data.rollNumber || '');
+        setBranch(data.branch || '');
+        setSemester(data.semester ? String(data.semester) : '');
+        if (data.qrReady && data.entryUrl) {
           setEntryUrl(data.entryUrl);
+        } else {
+          setEntryUrl('');
         }
       })
       .catch((error) => toast.error(error instanceof Error ? error.message : 'Failed to load profile'))
@@ -134,6 +144,45 @@ export default function ProfilePage() {
     }
   };
 
+  const handleSaveAcademic = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rollNumber,
+          branch,
+          semester: semester === '' ? '' : Number(semester),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to save');
+
+      setProfile((prev) =>
+        prev
+          ? {
+              ...prev,
+              rollNumber: data.rollNumber || undefined,
+              branch: data.branch || undefined,
+              semester: data.semester ?? undefined,
+            }
+          : prev
+      );
+      if (data.qrReady && data.entryUrl) {
+        setEntryUrl(data.entryUrl);
+        toast.success('Academic details saved — your entry QR is ready');
+      } else {
+        setEntryUrl('');
+        toast.success('Academic details saved — fill all fields to unlock QR pass');
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const avatarSrc = profile?.image || session?.user?.image || undefined;
 
   if (loading) {
@@ -157,6 +206,7 @@ export default function ProfilePage() {
   }
 
   const isStaff = profile.role === 'staff';
+  const qrReady = !isStaff && Boolean(profile.rollNumber?.trim() && profile.branch?.trim() && profile.semester);
   const initials = profile.name?.[0]?.toUpperCase() || 'U';
 
   return (
@@ -273,12 +323,14 @@ export default function ProfilePage() {
         )}
       </Panel>
 
-      <div className={`grid gap-5 ${!isStaff && entryUrl ? 'lg:grid-cols-[1fr_320px]' : ''}`}>
+      <div className={`grid gap-5 ${!isStaff ? 'lg:grid-cols-[1fr_320px]' : ''}`}>
         {/* Account details */}
         <Panel className="p-5 sm:p-6">
           <div className="mb-5">
             <h3 className="text-[15px] font-bold text-heading">Account Details</h3>
-            <p className="mt-0.5 text-[12px] text-muted-foreground">Registered campus information (read-only)</p>
+            <p className="mt-0.5 text-[12px] text-muted-foreground">
+              {isStaff ? 'Organization account information' : 'Update your roll number, branch and semester'}
+            </p>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
@@ -286,9 +338,52 @@ export default function ProfilePage() {
             <InfoRow icon={Mail} label="Email Address" value={profile.email} accent="blue" />
             {!isStaff && (
               <>
-                <InfoRow icon={Hash} label="Roll Number" value={profile.rollNumber || ''} accent="emerald" />
-                <InfoRow icon={Building2} label="Branch" value={profile.branch || ''} accent="amber" />
-                <InfoRow icon={GraduationCap} label="Semester" value={profile.semester ? String(profile.semester) : ''} accent="purple" />
+                <div className="sm:col-span-2 grid gap-4 rounded-xl border border-border bg-muted/30 p-4 sm:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="rollNumber" className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Roll Number
+                    </Label>
+                    <Input
+                      id="rollNumber"
+                      value={rollNumber}
+                      onChange={(e) => setRollNumber(e.target.value)}
+                      placeholder="e.g. CS2026-001"
+                      className="bg-card"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="branch" className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Branch
+                    </Label>
+                    <Input
+                      id="branch"
+                      value={branch}
+                      onChange={(e) => setBranch(e.target.value)}
+                      placeholder="e.g. Computer Science"
+                      className="bg-card"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="semester" className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Semester
+                    </Label>
+                    <Input
+                      id="semester"
+                      type="number"
+                      min={1}
+                      max={12}
+                      value={semester}
+                      onChange={(e) => setSemester(e.target.value)}
+                      placeholder="e.g. 4"
+                      className="bg-card"
+                    />
+                  </div>
+                  <div className="sm:col-span-3 flex justify-end">
+                    <Button type="button" onClick={handleSaveAcademic} disabled={saving}>
+                      {saving ? 'Saving...' : 'Save Academic Details'}
+                    </Button>
+                  </div>
+                </div>
                 <InfoRow icon={Layers} label="Account Type" value="Student" accent="blue" />
               </>
             )}
@@ -322,34 +417,49 @@ export default function ProfilePage() {
         </Panel>
 
         {/* QR Pass */}
-        {!isStaff && entryUrl && (
+        {!isStaff && (
           <Panel className="overflow-hidden bg-gradient-to-b from-brand-muted/50 to-card p-5 sm:p-6">
-            <div className="flex flex-col items-center text-center">
-              <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-brand/10">
-                <QrCode className="h-5 w-5 text-brand" />
+            {qrReady && entryUrl ? (
+              <div className="flex flex-col items-center text-center">
+                <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-brand/10">
+                  <QrCode className="h-5 w-5 text-brand" />
+                </div>
+                <h3 className="text-[15px] font-bold text-heading">College Entry Pass</h3>
+                <p className="mt-1 text-[12px] font-medium text-brand">Scan at the campus gate</p>
+
+                <Avatar className="mt-5 h-20 w-20 border-4 border-card shadow-md">
+                  <AvatarImage src={avatarSrc} alt={profile.name} />
+                  <AvatarFallback className="bg-brand-muted text-brand text-2xl font-bold">{initials}</AvatarFallback>
+                </Avatar>
+                <p className="mt-2 text-sm font-semibold text-foreground">{profile.name}</p>
+                <p className="text-xs text-muted-foreground">{profile.branch} · Sem {profile.semester}</p>
+
+                <div className="mt-4 rounded-2xl border border-border bg-card p-4 shadow-sm">
+                  <QRCode value={entryUrl} size={176} level="M" />
+                </div>
+
+                <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1.5 text-[11px] font-medium text-emerald-400">
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  Unique & secure
+                </div>
+
+                {profile.rollNumber && (
+                  <p className="mt-3 font-mono text-[11px] text-muted-foreground">{profile.rollNumber}</p>
+                )}
               </div>
-              <h3 className="text-[15px] font-bold text-heading">College Entry Pass</h3>
-              <p className="mt-1 text-[12px] font-medium text-brand">Scan at the campus gate</p>
-
-              <Avatar className="mt-5 h-20 w-20 border-4 border-card shadow-md">
-                <AvatarImage src={avatarSrc} alt={profile.name} />
-                <AvatarFallback className="bg-brand-muted text-brand text-2xl font-bold">{initials}</AvatarFallback>
-              </Avatar>
-              <p className="mt-2 text-sm font-semibold text-foreground">{profile.name}</p>
-
-              <div className="mt-4 rounded-2xl border border-border bg-card p-4 shadow-sm">
-                <QRCode value={entryUrl} size={176} level="M" />
+            ) : (
+              <div className="flex flex-col items-center text-center py-4">
+                <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-muted">
+                  <QrCode className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <h3 className="text-[15px] font-bold text-heading">Entry QR Locked</h3>
+                <p className="mt-2 max-w-[220px] text-[12px] leading-relaxed text-muted-foreground">
+                  Fill and save <span className="font-semibold text-foreground">Roll Number</span>,{' '}
+                  <span className="font-semibold text-foreground">Branch</span>, and{' '}
+                  <span className="font-semibold text-foreground">Semester</span> to generate your campus entry pass.
+                </p>
               </div>
-
-              <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1.5 text-[11px] font-medium text-emerald-400">
-                <ShieldCheck className="h-3.5 w-3.5" />
-                Unique & secure
-              </div>
-
-              {profile.rollNumber && (
-                <p className="mt-3 font-mono text-[11px] text-muted-foreground">{profile.rollNumber}</p>
-              )}
-            </div>
+            )}
           </Panel>
         )}
       </div>

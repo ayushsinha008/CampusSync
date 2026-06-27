@@ -33,7 +33,8 @@ type StudentDetail = {
   student: {
     _id: string; name: string; email: string; image: string | null;
     rollNumber?: string; branch?: string; semester?: number; createdAt: string;
-    publicEntryUrl: string;
+    publicEntryUrl: string | null;
+    qrReady?: boolean;
   };
   attendance: {
     percentage: number; attended: number; totalClasses: number;
@@ -292,18 +293,26 @@ export default function StudentsPage() {
                     <ShieldCheck className="h-5 w-5 text-[#5B4FCF]" />
                   </div>
                   <h3 className="text-[15px] font-bold text-[#1E293B]">College Entry QR</h3>
-                  <p className="text-xs text-[#5B4FCF] font-medium mt-1">Scan at campus gate</p>
-                  <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 inline-block">
-                    <QRCode value={detail.student.publicEntryUrl} size={180} level="M" />
-                  </div>
-                  <p className="mt-3 font-mono text-[11px] text-slate-400">{detail.student.rollNumber}</p>
-                  <Link
-                    href={detail.student.publicEntryUrl}
-                    target="_blank"
-                    className="mt-3 inline-block text-xs font-semibold text-[#5B4FCF] hover:underline"
-                  >
-                    Open entry pass page →
-                  </Link>
+                  {detail.student.qrReady && detail.student.publicEntryUrl ? (
+                    <>
+                      <p className="text-xs text-[#5B4FCF] font-medium mt-1">Scan at campus gate</p>
+                      <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 inline-block">
+                        <QRCode value={detail.student.publicEntryUrl} size={180} level="M" />
+                      </div>
+                      <p className="mt-3 font-mono text-[11px] text-slate-400">{detail.student.rollNumber}</p>
+                      <Link
+                        href={detail.student.publicEntryUrl}
+                        target="_blank"
+                        className="mt-3 inline-block text-xs font-semibold text-[#5B4FCF] hover:underline"
+                      >
+                        Open entry pass page →
+                      </Link>
+                    </>
+                  ) : (
+                    <p className="mt-3 text-xs text-slate-500 leading-relaxed px-2">
+                      QR not generated yet — student must complete roll number, branch and semester in profile.
+                    </p>
+                  )}
                 </div>
               </Panel>
             </div>

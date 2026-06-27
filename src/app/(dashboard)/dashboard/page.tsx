@@ -11,42 +11,24 @@ import {
   ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Legend,
   Tooltip as RechartsTooltip, ResponsiveContainer,
 } from 'recharts';
-import { buildGpaChartData, DEMO_GRADE_ROWS } from '@/lib/student-grades';
+import type { GpaChartPoint } from '@/lib/student-grades';
+import Link from 'next/link';
 
-const chartData = buildGpaChartData(DEMO_GRADE_ROWS);
+type ScheduleItem = {
+  name: string;
+  time: string;
+  lecturer: string;
+  room: string;
+  credits: string;
+  avatar: string;
+};
 
-const DEMO_SCHEDULE = [
-  {
-    name: 'Logics & Algebra',
-    time: '08.30 AM - 09.30 AM',
-    lecturer: 'Endang Setyowati, Ph.D',
-    room: 'HCI - 401',
-    credits: '4 Credits',
-    avatar: 'https://i.pravatar.cc/150?u=b',
-  },
-  {
-    name: 'Risk Management System',
-    time: '09.30 AM - 01.30 PM',
-    lecturer: 'Dadang Nurjaman, Ph.D',
-    room: 'HCI - 303',
-    credits: '4 Credits',
-    avatar: 'https://i.pravatar.cc/150?u=c',
-  },
-  {
-    name: 'Networking & Engineering',
-    time: '01.30 PM - 03.30 PM',
-    lecturer: 'Jusuf Pariaman, Ph.D',
-    room: 'HCI - 401',
-    credits: '4 Credits',
-    avatar: 'https://i.pravatar.cc/150?u=d',
-  },
-];
-
-const PAYMENTS = [
-  { id: 'PID - 331829', category: '6th Semester Tuition', date: '23 October 2024', status: 'On-Verification' as const },
-  { id: 'PID - 331828', category: 'Internship Program 2025', date: '24 August 2024', status: 'Completed' as const },
-  { id: 'PID - 331827', category: '5th Semester Tuition', date: '20 May 2024', status: 'Completed' as const },
-];
+type PaymentRow = {
+  _id: string;
+  description: string;
+  date: string;
+  status: string;
+};
 
 function Panel({ className = '', children }: { className?: string; children: React.ReactNode }) {
   return (
@@ -157,17 +139,27 @@ function ScheduleCard({
 export default function Dashboard() {
   const { data: session, status } = useSession();
   const [data, setData] = useState<any>(null);
+  const [chartData, setChartData] = useState<GpaChartPoint[]>([]);
+  const [gpaStats, setGpaStats] = useState<{ cumulativeGpa?: string } | null>(null);
+  const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (status === 'authenticated') {
-      fetch('/api/dashboard')
-        .then((res) => res.json())
-        .then((json) => {
-          if (!json.message) setData(json);
-          setLoading(false);
+      Promise.all([
+        fetch('/api/dashboard').then((res) => res.json()),
+        fetch('/api/grades').then((res) => res.json()),
+        fetch('/api/payments').then((res) => res.json()),
+      ])
+        .then(([dashboardJson, gradesJson, paymentsJson]) => {
+          if (!dashboardJson.message) setData(dashboardJson);
+          if (!gradesJson.message) {
+            setChartData(gradesJson.chartData || []);
+            setGpaStats(gradesJson.stats || null);
+          }
+          if (!paymentsJson.message) setPayments(paymentsJson.payments || []);
         })
-        .catch(() => setLoading(false));
+        .finally(() => setLoading(false));
     }
   }, [status]);
 
@@ -193,7 +185,7 @@ export default function Dashboard() {
     return <AdminDashboard />;
   }
 
-  const scheduleItems = data?.todaySchedule?.length
+  const scheduleItems: ScheduleItem[] = data?.todaySchedule?.length
     ? data.todaySchedule.map((cls: { startTime: string; endTime: string; subjectId?: { name?: string; faculty?: string; room?: string } }) => ({
         name: cls.subjectId?.name || 'Class',
         time: `${cls.startTime} - ${cls.endTime}`,
@@ -202,7 +194,7 @@ export default function Dashboard() {
         credits: '4 Credits',
         avatar: `https://i.pravatar.cc/150?u=${cls.subjectId?.name || 'class'}`,
       }))
-    : DEMO_SCHEDULE;
+    : [];
 
   return (
     <div className="w-full space-y-5">
@@ -221,70 +213,80 @@ export default function Dashboard() {
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 p-5 pb-2">
               <div>
                 <h3 className="text-[15px] font-bold text-[#1E293B]">Grade Point Average</h3>
-                <p className="text-[11px] text-slate-400 mt-0.5">Comparison between your GPA and Average Student GPA</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  {gpaStats?.cumulativeGpa && Number(gpaStats.cumulativeGpa) > 0
+                    ? `Cumulative GPA: ${gpaStats.cumulativeGpa}`
+                    : 'No grades recorded yet'}
+                </p>
               </div>
-              <select className="text-[11px] border border-slate-200 rounded-lg bg-[#F5F6FA] py-1.5 px-3 text-slate-700 font-medium outline-none cursor-pointer shrink-0">
-                <option>All Semesters</option>
-              </select>
             </div>
-            <div className="px-3 sm:px-5 pb-5 h-[260px] sm:h-[280px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={chartData} margin={{ top: 4, right: 12, left: 0, bottom: 4 }}>
-                  <defs>
-                    <linearGradient id="colorYourGpa" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.18} />
-                      <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis
-                    dataKey="shortLabel"
-                    axisLine={false}
-                    tickLine={false}
-                    interval={0}
-                    tick={{ fontSize: 10, fill: '#94a3b8' }}
-                    dy={8}
-                  />
-                  <YAxis
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 10, fill: '#94a3b8' }}
-                    domain={[1.0, 4.0]}
-                    ticks={[1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0]}
-                    width={28}
-                  />
-                  <Legend
-                    verticalAlign="top"
-                    align="right"
-                    iconType="line"
-                    iconSize={12}
-                    wrapperStyle={{ fontSize: 11, paddingBottom: 8 }}
-                    formatter={(value) => (value === 'yourGPA' ? 'Your GPA' : 'Average GPA')}
-                  />
-                  <RechartsTooltip content={<CustomTooltip />} cursor={{ stroke: '#e2e8f0', strokeWidth: 1 }} />
-                  <Line
-                    type="monotone"
-                    dataKey="avgGPA"
-                    name="avgGPA"
-                    stroke="#f43f5e"
-                    strokeWidth={2}
-                    strokeDasharray="6 4"
-                    dot={{ r: 4, fill: '#f43f5e', strokeWidth: 0 }}
-                    activeDot={{ r: 6, fill: '#f43f5e', strokeWidth: 0 }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="yourGPA"
-                    name="yourGPA"
-                    stroke="#8b5cf6"
-                    strokeWidth={2.5}
-                    fill="url(#colorYourGpa)"
-                    dot={{ r: 4, fill: '#8b5cf6', strokeWidth: 2, stroke: '#fff' }}
-                    activeDot={{ r: 6, strokeWidth: 2, fill: '#8b5cf6', stroke: '#fff' }}
-                  />
-                </ComposedChart>
-              </ResponsiveContainer>
-            </div>
+            {chartData.length === 0 ? (
+              <div className="px-5 pb-8 pt-2 text-center">
+                <p className="text-sm text-slate-500">Grades will appear here once your courses are published.</p>
+                <Link href="/grades" className="mt-2 inline-block text-xs font-semibold text-[#5B4FCF] hover:underline">
+                  Go to Grades →
+                </Link>
+              </div>
+            ) : (
+              <div className="px-3 sm:px-5 pb-5 h-[260px] sm:h-[280px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={chartData} margin={{ top: 4, right: 12, left: 0, bottom: 4 }}>
+                    <defs>
+                      <linearGradient id="colorYourGpa" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.18} />
+                        <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis
+                      dataKey="shortLabel"
+                      axisLine={false}
+                      tickLine={false}
+                      interval={0}
+                      tick={{ fontSize: 10, fill: '#94a3b8' }}
+                      dy={8}
+                    />
+                    <YAxis
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 10, fill: '#94a3b8' }}
+                      domain={[1.0, 4.0]}
+                      ticks={[1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0]}
+                      width={28}
+                    />
+                    <Legend
+                      verticalAlign="top"
+                      align="right"
+                      iconType="line"
+                      iconSize={12}
+                      wrapperStyle={{ fontSize: 11, paddingBottom: 8 }}
+                      formatter={(value) => (value === 'yourGPA' ? 'Your GPA' : 'Average GPA')}
+                    />
+                    <RechartsTooltip content={<CustomTooltip />} cursor={{ stroke: '#e2e8f0', strokeWidth: 1 }} />
+                    <Line
+                      type="monotone"
+                      dataKey="avgGPA"
+                      name="avgGPA"
+                      stroke="#f43f5e"
+                      strokeWidth={2}
+                      strokeDasharray="6 4"
+                      dot={{ r: 4, fill: '#f43f5e', strokeWidth: 0 }}
+                      activeDot={{ r: 6, fill: '#f43f5e', strokeWidth: 0 }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="yourGPA"
+                      name="yourGPA"
+                      stroke="#8b5cf6"
+                      strokeWidth={2.5}
+                      fill="url(#colorYourGpa)"
+                      dot={{ r: 4, fill: '#8b5cf6', strokeWidth: 2, stroke: '#fff' }}
+                      activeDot={{ r: 6, strokeWidth: 2, fill: '#8b5cf6', stroke: '#fff' }}
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </Panel>
 
           {/* Payment table */}
@@ -292,43 +294,43 @@ export default function Dashboard() {
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 p-5 pb-3">
               <div>
                 <h3 className="text-[15px] font-semibold text-[#1E293B]">Payment & Tuition History</h3>
-                <p className="text-[11px] text-slate-400 mt-0.5">Complete data about your payment and tuition history</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">Your payment records from the database</p>
               </div>
-              <button type="button" className="text-[11px] font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg px-3 py-1.5 hover:bg-slate-50 shrink-0">
+              <Link href="/payments" className="text-[11px] font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg px-3 py-1.5 hover:bg-slate-50 shrink-0">
                 View All Payment
-              </button>
+              </Link>
             </div>
             <div className="px-5 pb-5 overflow-x-auto">
-              <table className="w-full text-[13px] text-left min-w-[560px]">
-                <thead>
-                  <tr className="text-slate-400 border-b border-slate-100">
-                    <th className="pb-2.5 font-medium pr-4">Payment ID</th>
-                    <th className="pb-2.5 font-medium pr-4">Payment Category</th>
-                    <th className="pb-2.5 font-medium pr-4">Date</th>
-                    <th className="pb-2.5 font-medium pr-4">Payment Status</th>
-                    <th className="pb-2.5 font-medium text-center w-10">...</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {PAYMENTS.map((row) => (
-                    <tr key={row.id}>
-                      <td className="py-3 pr-4 text-slate-500 font-medium whitespace-nowrap">{row.id}</td>
-                      <td className="py-3 pr-4 text-[#1E293B] font-semibold">{row.category}</td>
-                      <td className="py-3 pr-4 text-slate-500 whitespace-nowrap">{row.date}</td>
-                      <td className="py-3 pr-4">
-                        <span className={row.status === 'On-Verification'
-                          ? 'bg-amber-100 text-amber-600 px-3 py-1 rounded-md font-medium text-xs'
-                          : 'bg-emerald-100 text-emerald-600 px-3 py-1 rounded-md font-medium text-xs'}>
-                          {row.status}
-                        </span>
-                      </td>
-                      <td className="py-3 text-center">
-                        <ExternalLink className="h-3.5 w-3.5 text-slate-400 inline-block cursor-pointer hover:text-slate-600" />
-                      </td>
+              {payments.length === 0 ? (
+                <p className="py-8 text-center text-sm text-slate-500">No payment records yet.</p>
+              ) : (
+                <table className="w-full text-[13px] text-left min-w-[560px]">
+                  <thead>
+                    <tr className="text-slate-400 border-b border-slate-100">
+                      <th className="pb-2.5 font-medium pr-4">Payment ID</th>
+                      <th className="pb-2.5 font-medium pr-4">Payment Category</th>
+                      <th className="pb-2.5 font-medium pr-4">Date</th>
+                      <th className="pb-2.5 font-medium pr-4">Payment Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {payments.slice(0, 5).map((row) => (
+                      <tr key={row._id}>
+                        <td className="py-3 pr-4 text-slate-500 font-medium whitespace-nowrap">{row._id.slice(-8).toUpperCase()}</td>
+                        <td className="py-3 pr-4 text-[#1E293B] font-semibold">{row.description}</td>
+                        <td className="py-3 pr-4 text-slate-500 whitespace-nowrap">{new Date(row.date).toLocaleDateString()}</td>
+                        <td className="py-3 pr-4">
+                          <span className={row.status === 'Pending'
+                            ? 'bg-amber-100 text-amber-600 px-3 py-1 rounded-md font-medium text-xs'
+                            : 'bg-emerald-100 text-emerald-600 px-3 py-1 rounded-md font-medium text-xs'}>
+                            {row.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           </Panel>
         </div>
@@ -338,17 +340,17 @@ export default function Dashboard() {
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 p-5 pb-3">
             <div>
               <h3 className="text-[15px] font-semibold text-[#1E293B]">Daily Class Schedule</h3>
-              <p className="text-[11px] text-slate-400 mt-0.5">Schedule for your class in weekly & daily</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">Today&apos;s classes from timetable</p>
             </div>
-            <select className="text-[11px] border border-slate-200 rounded-lg bg-[#F5F6FA] py-1.5 px-3 text-slate-600 outline-none cursor-pointer shrink-0">
-              <option>Daily</option>
-              <option>Weekly</option>
-            </select>
           </div>
           <div className="px-5 pb-5 flex flex-col gap-2.5">
-            {scheduleItems.map((item: typeof DEMO_SCHEDULE[0]) => (
-              <ScheduleCard key={item.name + item.time} {...item} />
-            ))}
+            {scheduleItems.length === 0 ? (
+              <p className="py-8 text-center text-sm text-slate-500">No classes scheduled for today.</p>
+            ) : (
+              scheduleItems.map((item) => (
+                <ScheduleCard key={item.name + item.time} {...item} />
+              ))
+            )}
           </div>
         </Panel>
       </div>

@@ -6,35 +6,36 @@ export function buildEntryUrl(entryToken: string) {
   return `${base.replace(/\/$/, '')}/entry/${entryToken}`;
 }
 
-export async function ensureUserProfileFields(user: IUser) {
-  let changed = false;
+export function isStudentProfileComplete(user: Pick<IUser, 'rollNumber' | 'branch' | 'semester' | 'role'>) {
+  if (user.role !== 'student') return false;
+  return Boolean(
+    user.rollNumber?.trim() &&
+      user.branch?.trim() &&
+      user.semester &&
+      user.semester >= 1
+  );
+}
 
-  if (!user.entryToken) {
-    user.entryToken = randomUUID();
-    changed = true;
-  }
+/** Generate entry token only when roll, branch and semester are all set. */
+export async function syncStudentEntryToken(user: IUser) {
+  if (user.role !== 'student') return user;
 
-  if (user.role === 'student') {
-    if (!user.rollNumber) {
-      const suffix = user._id.toString().slice(-4).toUpperCase();
-      user.rollNumber = `CS2026-${suffix}`;
-      changed = true;
+  if (isStudentProfileComplete(user)) {
+    if (!user.entryToken) {
+      user.entryToken = randomUUID();
+      await user.save();
     }
-    if (!user.branch) {
-      user.branch = 'Computer Science';
-      changed = true;
-    }
-    if (!user.semester) {
-      user.semester = 4;
-      changed = true;
-    }
-  }
-
-  if (changed) {
+  } else if (user.entryToken) {
+    user.set('entryToken', undefined);
     await user.save();
   }
 
   return user;
+}
+
+export function getStudentEntryUrl(user: IUser) {
+  if (!isStudentProfileComplete(user) || !user.entryToken) return null;
+  return buildEntryUrl(user.entryToken);
 }
 
 export function serializePublicProfile(user: IUser) {

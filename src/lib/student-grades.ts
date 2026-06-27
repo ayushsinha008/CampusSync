@@ -61,32 +61,16 @@ export function buildGpaChartData(grades: { grade: string; credits: number; seme
   }));
 
   if (semesterGpas.length === 0) {
-    semesterGpas = [
-      { semester: 'Semester 1', gpa: 2.5 },
-      { semester: 'Semester 2', gpa: 2.7 },
-      { semester: 'Semester 3', gpa: 2.9 },
-      { semester: 'Semester 4', gpa: 3.1 },
-      { semester: 'Semester 5', gpa: 3.4 },
-      { semester: 'Semester 6', gpa: 3.6 },
-    ];
-  } else if (semesterGpas.length < 6) {
-    const actual = semesterGpas;
-    const firstGpa = actual[0].gpa;
-    const missing = 6 - actual.length;
-    const earlier = Array.from({ length: missing }, (_, i) => ({
-      semester: `Semester ${i + 1}`,
-      gpa: Math.min(4, Math.max(1.5, firstGpa * (0.55 + (i + 1) / (missing + 1) * 0.35))),
-    }));
-    semesterGpas = [...earlier, ...actual];
+    return [];
   }
 
-  return semesterGpas.slice(0, 6).map((sem, semIdx) => {
+  return semesterGpas.map((sem, semIdx) => {
     const yourGPA = Math.min(4, Math.max(1, Number(sem.gpa.toFixed(2))));
     const avgGPA = Math.min(4, Math.max(1, Number((yourGPA * 0.88 + 0.25).toFixed(2))));
     return {
       id: String(semIdx),
-      label: `${SEMESTER_ORDINALS[semIdx]} Semester`,
-      shortLabel: SEMESTER_ORDINALS[semIdx],
+      label: sem.semester,
+      shortLabel: SEMESTER_ORDINALS[semIdx] || String(semIdx + 1),
       yourGPA,
       avgGPA,
     };

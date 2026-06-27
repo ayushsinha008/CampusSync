@@ -159,9 +159,15 @@ export default function GradesPage() {
             </span>
           </div>
         </CardHeader>
-        <CardContent className="px-2 sm:px-5 pb-5 pt-2 h-[260px] sm:h-[280px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={chartData} margin={{ top: 4, right: 12, left: 0, bottom: 4 }}>
+        <CardContent className="px-2 sm:px-5 pb-5 pt-2">
+          {chartData.length === 0 ? (
+            <p className="py-16 text-center text-sm text-muted-foreground">
+              No grades yet. Your GPA chart will appear when grades are added to your account.
+            </p>
+          ) : (
+            <div className="h-[260px] sm:h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={chartData} margin={{ top: 4, right: 12, left: 0, bottom: 4 }}>
               <defs>
                 <linearGradient id="gradesYourGpa" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.18} />
@@ -215,7 +221,9 @@ export default function GradesPage() {
                 activeDot={{ r: 6, strokeWidth: 2, fill: '#8b5cf6', stroke: 'var(--card)' }}
               />
             </ComposedChart>
-          </ResponsiveContainer>
+              </ResponsiveContainer>
+            </div>
+          )}
         </CardContent>
       </Card>
 

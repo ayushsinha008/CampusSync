@@ -3,9 +3,7 @@ import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import bcrypt from 'bcryptjs';
 import Otp from '@/models/Otp';
-import { randomUUID } from 'crypto';
 import { normalizeEmail } from '@/lib/auth-session';
-import { ensureStudentEnrollments } from '@/lib/student-data';
 
 const STAFF_EMAIL = normalizeEmail(process.env.STAFF_EMAIL || 'staff@campus.sync');
 
@@ -51,21 +49,12 @@ export async function POST(req: Request) {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const entryToken = randomUUID();
-    const user = await User.create({
+    await User.create({
       name: name.trim(),
       email: normalizedEmail,
       password: hashedPassword,
       role: 'student',
-      entryToken,
-      branch: 'Computer Science',
-      semester: 4,
     });
-
-    user.rollNumber = `CS2026-${user._id.toString().slice(-4).toUpperCase()}`;
-    await user.save();
-
-    await ensureStudentEnrollments(user._id.toString());
 
     return NextResponse.json({ message: 'User created successfully' }, { status: 201 });
   } catch (error: unknown) {

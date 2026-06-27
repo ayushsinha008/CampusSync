@@ -53,7 +53,7 @@ export async function GET() {
       totalAttendance += sub.attendance;
     });
     const attendancePercentage =
-      totalClasses > 0 ? Math.round((totalAttendance / totalClasses) * 100) : 100;
+      totalClasses > 0 ? Math.round((totalAttendance / totalClasses) * 100) : 0;
 
     const newNoticesCount = await Notice.countDocuments();
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];

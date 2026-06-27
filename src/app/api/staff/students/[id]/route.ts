@@ -11,7 +11,7 @@ import Payment from '@/models/Payment';
 import FinancialAid from '@/models/FinancialAid';
 import { requireStaff } from '@/lib/auth-session';
 import { getSubjectsWithAttendance } from '@/lib/student-data';
-import { buildEntryUrl, ensureUserProfileFields } from '@/lib/user-profile';
+import { getStudentEntryUrl, isStudentProfileComplete, syncStudentEntryToken } from '@/lib/user-profile';
 import { ensureStudentGrades } from '@/lib/student-grades.server';
 import { computeStats } from '@/lib/student-grades';
 
@@ -28,7 +28,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       return NextResponse.json({ message: 'Student not found' }, { status: 404 });
     }
 
-    await ensureUserProfileFields(student);
+    await syncStudentEntryToken(student);
     student = await User.findById(id).select('-password');
 
     const [
@@ -93,8 +93,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       };
     });
 
-    const entryToken = student!.entryToken!;
-    const origin = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    const entryUrl = student ? getStudentEntryUrl(student) : null;
+    const qrReady = student ? isStudentProfileComplete(student) : false;
 
     return NextResponse.json({
       student: {
@@ -106,9 +106,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         branch: student!.branch,
         semester: student!.semester,
         createdAt: student!.createdAt,
-        entryToken,
-        entryUrl: buildEntryUrl(entryToken),
-        publicEntryUrl: `${origin.replace(/\/$/, '')}/entry/${entryToken}`,
+        entryToken: student!.entryToken || null,
+        entryUrl,
+        publicEntryUrl: entryUrl || null,
+        qrReady,
       },
       attendance: {
         percentage: totalClasses > 0 ? Math.round((totalAttendance / totalClasses) * 100) : 0,
