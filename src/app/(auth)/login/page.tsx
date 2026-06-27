@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -30,6 +30,10 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
+  useEffect(() => {
+    fetch('/api/auth/flush-session', { method: 'POST' }).catch(() => undefined);
+  }, []);
+
   const switchMode = (next: LoginMode) => {
     setMode(next);
     setEmail('');
@@ -39,6 +43,8 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+
+    await fetch('/api/auth/flush-session', { method: 'POST' }).catch(() => undefined);
 
     const res = await signIn('credentials', {
       redirect: false,

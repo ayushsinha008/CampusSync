@@ -6,9 +6,9 @@ import bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
 import { normalizeEmail } from '@/lib/auth-session';
 import { getNextAuthSecret, getStaffPasswordForAuth } from '@/lib/env';
-import { isStorableSessionImage } from '@/lib/session-image';
 
 const STAFF_EMAIL = normalizeEmail(process.env.STAFF_EMAIL || 'staff@campus.sync');
+const isProd = process.env.NODE_ENV === 'production';
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -56,7 +56,6 @@ export const authOptions: NextAuthOptions = {
           id: user._id.toString(),
           name: user.name,
           email: user.email,
-          image: isStorableSessionImage(user.image) ? user.image : null,
           role: user.role,
         };
       },
@@ -66,38 +65,42 @@ export const authOptions: NextAuthOptions = {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60,
   },
+  cookies: {
+    sessionToken: {
+      name: isProd ? '__Secure-campussync.sid' : 'campussync.sid',
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: isProd,
+      },
+    },
+  },
   callbacks: {
     async jwt({ token, user, trigger, session }) {
       if (user) {
-        token.id = user.id;
+        token.uid = user.id;
         token.role = ((user as { role?: string }).role || 'student') as 'student' | 'staff';
         token.name = user.name;
         token.email = user.email;
-        if (isStorableSessionImage(user.image)) {
-          token.picture = user.image;
-        } else {
-          delete token.picture;
-        }
       }
       if (trigger === 'update' && session) {
-        const data = session as { name?: string; email?: string; image?: string };
+        const data = session as { name?: string };
         if (data.name) token.name = data.name;
-        if (data.email) token.email = data.email;
-        if (data.image && isStorableSessionImage(data.image)) {
-          token.picture = data.image;
-        }
       }
+
+      delete token.picture;
+      delete token.id;
+
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id as string;
+        session.user.id = (token.uid as string) || (token.sub as string);
         session.user.role = token.role as 'student' | 'staff';
-        session.user.name = token.name as string;
-        session.user.email = token.email as string;
-        session.user.image = isStorableSessionImage(token.picture as string)
-          ? (token.picture as string)
-          : null;
+        session.user.name = (token.name as string) || session.user.name;
+        session.user.email = (token.email as string) || session.user.email || '';
+        session.user.image = null;
       }
       return session;
     },

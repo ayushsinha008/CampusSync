@@ -9,7 +9,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { isStorableSessionImage } from '@/lib/session-image';
 
 interface NavbarProps {
   onMenuClick?: () => void;
@@ -53,15 +52,11 @@ export function Navbar({ onMenuClick }: NavbarProps) {
 
   useEffect(() => {
     if (!session?.user?.id) return;
-    if (isStorableSessionImage(session.user.image)) {
-      setAvatarSrc(session.user.image!);
-      return;
-    }
     fetch('/api/profile')
       .then((res) => res.json())
       .then((data) => setAvatarSrc(data.image || undefined))
       .catch(() => undefined);
-  }, [session?.user?.id, session?.user?.image]);
+  }, [session?.user?.id]);
 
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
