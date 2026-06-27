@@ -6,6 +6,7 @@ import bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
 import { normalizeEmail } from '@/lib/auth-session';
 import { getNextAuthSecret, getStaffPasswordForAuth } from '@/lib/env';
+import { isStorableSessionImage } from '@/lib/session-image';
 
 const STAFF_EMAIL = normalizeEmail(process.env.STAFF_EMAIL || 'staff@campus.sync');
 
@@ -55,7 +56,7 @@ export const authOptions: NextAuthOptions = {
           id: user._id.toString(),
           name: user.name,
           email: user.email,
-          image: user.image,
+          image: isStorableSessionImage(user.image) ? user.image : null,
           role: user.role,
         };
       },
@@ -72,13 +73,19 @@ export const authOptions: NextAuthOptions = {
         token.role = ((user as { role?: string }).role || 'student') as 'student' | 'staff';
         token.name = user.name;
         token.email = user.email;
-        token.picture = user.image;
+        if (isStorableSessionImage(user.image)) {
+          token.picture = user.image;
+        } else {
+          delete token.picture;
+        }
       }
       if (trigger === 'update' && session) {
         const data = session as { name?: string; email?: string; image?: string };
         if (data.name) token.name = data.name;
         if (data.email) token.email = data.email;
-        if (data.image) token.picture = data.image;
+        if (data.image && isStorableSessionImage(data.image)) {
+          token.picture = data.image;
+        }
       }
       return token;
     },
@@ -88,7 +95,9 @@ export const authOptions: NextAuthOptions = {
         session.user.role = token.role as 'student' | 'staff';
         session.user.name = token.name as string;
         session.user.email = token.email as string;
-        session.user.image = (token.picture as string) || null;
+        session.user.image = isStorableSessionImage(token.picture as string)
+          ? (token.picture as string)
+          : null;
       }
       return session;
     },

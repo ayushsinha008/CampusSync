@@ -27,6 +27,7 @@ import { signOut, useSession } from 'next-auth/react';
 import { format } from 'date-fns';
 import QRCode from 'react-qr-code';
 import { Panel } from '@/components/Panel';
+import { isStorableSessionImage } from '@/lib/session-image';
 
 type ProfileData = {
   name: string;
@@ -105,7 +106,7 @@ export default function ProfilePage() {
   }, []);
 
   useEffect(() => {
-    if (profile?.image && profile.image !== session?.user?.image) {
+    if (profile?.image && profile.image !== session?.user?.image && isStorableSessionImage(profile.image)) {
       updateSession({ image: profile.image });
     }
   }, [profile?.image, session?.user?.image, updateSession]);
@@ -134,7 +135,9 @@ export default function ProfilePage() {
       if (!res.ok) throw new Error(data.message || 'Upload failed');
 
       setProfile((prev) => (prev ? { ...prev, image: data.image } : prev));
-      await updateSession({ image: data.image });
+      if (isStorableSessionImage(data.image)) {
+        await updateSession({ image: data.image });
+      }
       toast.success('Profile photo saved to your account');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Upload failed');

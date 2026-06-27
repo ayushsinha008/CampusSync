@@ -32,6 +32,11 @@ export async function saveUpload(file: File, subdir: string) {
     throw new Error('Allowed types: PDF, DOC, DOCX, ZIP, PNG, JPG, TXT');
   }
 
+  // Vercel: store compact data URLs only (avatars must stay out of JWT cookies).
+  if (IS_SERVERLESS && subdir === 'avatars' && file.size > 200 * 1024) {
+    throw new Error('Profile photo must be 200KB or smaller on cloud deploy');
+  }
+
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
 
