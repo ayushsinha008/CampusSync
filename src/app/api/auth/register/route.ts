@@ -3,6 +3,7 @@ import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import bcrypt from 'bcryptjs';
 import Otp from '@/models/Otp';
+import { randomUUID } from 'crypto';
 import { normalizeEmail } from '@/lib/auth-session';
 import { ensureStudentEnrollments } from '@/lib/student-data';
 
@@ -19,7 +20,7 @@ export async function POST(req: Request) {
     const normalizedEmail = normalizeEmail(email);
 
     if (normalizedEmail === STAFF_EMAIL) {
-      return NextResponse.json({ message: 'Staff accounts cannot be created via Sign Up.' }, { status: 403 });
+      return NextResponse.json({ message: 'Organization admin accounts cannot be created via Sign Up.' }, { status: 403 });
     }
 
     if (password.length < 6) {
@@ -33,7 +34,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: 'An account with this email already exists. Please log in.' }, { status: 409 });
     }
 
-    const otpRecord = await Otp.findOne({ email: normalizedEmail }).sort({ createdAt: -1 });
+    const otpRecord = await Otp.findOne({ email: normalizedEmail, purpose: 'signup' }).sort({ createdAt: -1 });
     if (!otpRecord) {
       return NextResponse.json({ message: 'OTP expired or not found. Please request a new one.' }, { status: 400 });
     }
@@ -42,7 +43,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: 'Invalid OTP' }, { status: 400 });
     }
 
-    await Otp.deleteMany({ email: normalizedEmail });
+    await Otp.deleteMany({ email: normalizedEmail, purpose: 'signup' });
 
     const duplicateCheck = await User.findOne({ email: normalizedEmail });
     if (duplicateCheck) {
@@ -50,12 +51,19 @@ export async function POST(req: Request) {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    const entryToken = randomUUID();
     const user = await User.create({
       name: name.trim(),
       email: normalizedEmail,
       password: hashedPassword,
       role: 'student',
+      entryToken,
+      branch: 'Computer Science',
+      semester: 4,
     });
+
+    user.rollNumber = `CS2026-${user._id.toString().slice(-4).toUpperCase()}`;
+    await user.save();
 
     await ensureStudentEnrollments(user._id.toString());
 

@@ -3,6 +3,7 @@
 import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AdminDashboard } from '@/components/AdminDashboard';
 import {
   Tag, BarChart2, BookOpen, ExternalLink, MoreHorizontal, User, MapPin, Layers,
 } from 'lucide-react';
@@ -220,49 +221,7 @@ export default function Dashboard() {
   const role = (session?.user as { role?: string })?.role || 'student';
 
   if (role === 'staff') {
-    return (
-      <div className="w-full space-y-5">
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
-          <StatCard icon={Layers} title="Students" value={String(data?.stats?.studentCount ?? 0)} total="" subtitle="Registered students" badge="Live" badgeVariant="positive" />
-          <StatCard icon={Tag} title="Assignments" value={String(data?.stats?.assignmentCount ?? 0)} total="" subtitle="Posted for students" badge="Live" badgeVariant="positive" />
-          <StatCard icon={BarChart2} title="Notices" value={String(data?.stats?.noticeCount ?? 0)} total="" subtitle="Campus announcements" badge="Published" badgeVariant="positive" />
-          <StatCard icon={BookOpen} title="Classes" value={String(data?.stats?.classCount ?? 0)} total="" subtitle="Timetable slots" badge="Scheduled" badgeVariant="positive" />
-        </div>
-
-        <Panel className="p-5">
-          <h3 className="text-[15px] font-bold text-[#1E293B] mb-1">Registered Students</h3>
-          <p className="text-[11px] text-slate-400 mb-4">All student accounts and data stored in the database</p>
-          <div className="overflow-x-auto">
-            <table className="w-full text-[13px] text-left min-w-[520px]">
-              <thead>
-                <tr className="text-slate-400 border-b border-slate-100">
-                  <th className="pb-2 font-medium pr-4">Name</th>
-                  <th className="pb-2 font-medium pr-4">Email</th>
-                  <th className="pb-2 font-medium pr-4">Branch</th>
-                  <th className="pb-2 font-medium pr-4">Joined</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {(data?.recentStudents ?? []).length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="py-6 text-center text-slate-400">No students registered yet</td>
-                  </tr>
-                ) : (
-                  data.recentStudents.map((s: { _id: string; name: string; email: string; branch?: string; createdAt: string }) => (
-                    <tr key={s._id}>
-                      <td className="py-3 pr-4 font-semibold text-[#1E293B]">{s.name}</td>
-                      <td className="py-3 pr-4 text-slate-500">{s.email}</td>
-                      <td className="py-3 pr-4 text-slate-500">{s.branch || '—'}</td>
-                      <td className="py-3 pr-4 text-slate-500">{new Date(s.createdAt).toLocaleDateString()}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </Panel>
-      </div>
-    );
+    return <AdminDashboard />;
   }
 
   const scheduleItems = data?.todaySchedule?.length
@@ -301,7 +260,7 @@ export default function Dashboard() {
             </div>
             <div className="px-3 sm:px-5 pb-5 h-[220px] sm:h-[250px]">
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={chartData} margin={{ top: 10, right: 16, left: -16, bottom: 0 }}>
+                <ComposedChart data={chartData} margin={{ top: 10, right: 8, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorYourGpa" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.18} />

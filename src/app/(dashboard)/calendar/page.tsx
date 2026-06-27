@@ -1,125 +1,213 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, MapPin } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ChevronLeft, ChevronRight, Clock, MapPin, Plus } from 'lucide-react';
+import { toast } from 'sonner';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-const MOCK_EVENTS = [
-  { id: 1, title: 'CS101 Midterm', date: 15, type: 'exam', time: '10:00 AM', location: 'Hall A' },
-  { id: 2, title: 'CS Society Meetup', date: 15, type: 'club', time: '4:00 PM', location: 'Student Center' },
-  { id: 3, title: 'Project Deadline', date: 18, type: 'assignment', time: '11:59 PM', location: 'Online' },
-  { id: 4, title: 'Guest Lecture', date: 22, type: 'event', time: '2:00 PM', location: 'Auditorium' },
-];
+type CalEvent = {
+  _id: string;
+  title: string;
+  date: string;
+  time: string;
+  location: string;
+  type: string;
+};
 
 export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
-  
+  const [events, setEvents] = useState<CalEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState('');
+  const [eventDate, setEventDate] = useState('');
+  const [time, setTime] = useState('');
+  const [location, setLocation] = useState('Campus');
+
+  const loadEvents = () => {
+    const month = currentDate.getMonth() + 1;
+    const year = currentDate.getFullYear();
+    fetch(`/api/calendar?month=${month}&year=${year}`)
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message);
+        setEvents(data);
+      })
+      .catch(() => toast.error('Failed to load calendar'))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    setLoading(true);
+    loadEvents();
+  }, [currentDate.getMonth(), currentDate.getFullYear()]);
+
   const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
   const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
-  
-  const prevMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
-  const nextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+  const today = new Date();
 
-  const getEventsForDay = (day: number) => MOCK_EVENTS.filter(e => e.date === day);
+  const getEventsForDay = (day: number) =>
+    events.filter((e) => {
+      const d = new Date(e.date);
+      return d.getDate() === day && d.getMonth() === currentDate.getMonth() && d.getFullYear() === currentDate.getFullYear();
+    });
+
+  const handleAddEvent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const res = await fetch('/api/calendar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, date: eventDate, time, location, type: 'event' }),
+    });
+    if (res.ok) {
+      toast.success('Event added');
+      setOpen(false);
+      setTitle('');
+      setEventDate('');
+      setTime('');
+      loadEvents();
+    } else {
+      toast.error('Failed to add event');
+    }
+  };
+
+  if (loading && events.length === 0) return <Skeleton className="h-96 rounded-2xl" />;
 
   return (
-    <div className="flex-1 space-y-6 max-w-7xl mx-auto w-full">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Academic Calendar</h1>
-          <p className="text-sm text-slate-500 mt-1">Manage your classes, exams, and events.</p>
+    <div className="flex-1 space-y-6 max-w-7xl mx-auto w-full px-0">
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-heading tracking-tight">Academic Calendar</h1>
+          <p className="text-sm text-muted-foreground mt-1">Classes, exams, assignments and campus events.</p>
         </div>
-        <Button className="bg-[#1C64F2] hover:bg-blue-700 text-white">
-          <CalendarIcon className="mr-2 h-4 w-4" /> Add Event
-        </Button>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger render={<Button className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white shrink-0" />}>
+            <Plus className="mr-2 h-4 w-4" /> Add Event
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Add Calendar Event</DialogTitle></DialogHeader>
+            <form onSubmit={handleAddEvent} className="space-y-4">
+              <div className="space-y-2"><Label>Title</Label><Input required value={title} onChange={(e) => setTitle(e.target.value)} /></div>
+              <div className="space-y-2"><Label>Date</Label><Input type="date" required value={eventDate} onChange={(e) => setEventDate(e.target.value)} /></div>
+              <div className="space-y-2"><Label>Time</Label><Input required placeholder="10:00 AM" value={time} onChange={(e) => setTime(e.target.value)} /></div>
+              <div className="space-y-2"><Label>Location</Label><Input value={location} onChange={(e) => setLocation(e.target.value)} /></div>
+              <Button type="submit" className="w-full">Save Event</Button>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Calendar Grid */}
-        <Card className="col-span-1 lg:col-span-2 rounded-2xl border-slate-200 shadow-sm overflow-hidden">
-          <CardHeader className="flex flex-row items-center justify-between py-4 bg-slate-50 border-b border-slate-100">
-            <CardTitle className="text-lg font-bold text-slate-800">
+        <Card className="col-span-1 lg:col-span-2 rounded-2xl border-border shadow-sm overflow-hidden">
+          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between py-4 bg-muted border-b border-border">
+            <CardTitle className="text-base sm:text-lg font-bold text-foreground">
               {currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
             </CardTitle>
-            <div className="flex space-x-2">
-              <Button variant="outline" size="icon" onClick={prevMonth} className="h-8 w-8 rounded-lg">
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="icon" onClick={nextMonth} className="h-8 w-8 rounded-lg">
-                <ChevronRight className="h-4 w-4" />
-              </Button>
+            <div className="flex gap-2 self-end sm:self-auto">
+              <Button variant="outline" size="icon" onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))} className="h-8 w-8"><ChevronLeft className="h-4 w-4" /></Button>
+              <Button variant="outline" size="icon" onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))} className="h-8 w-8"><ChevronRight className="h-4 w-4" /></Button>
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50/50">
-              {DAYS.map(day => (
-                <div key={day} className="py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider border-r border-slate-100 last:border-0">
-                  {day}
-                </div>
+            {/* Mobile: day-by-day agenda */}
+            <div className="md:hidden divide-y divide-border">
+              {Array.from({ length: daysInMonth }).map((_, i) => {
+                const day = i + 1;
+                const dayEvents = getEventsForDay(day);
+                const isToday =
+                  day === today.getDate() &&
+                  currentDate.getMonth() === today.getMonth() &&
+                  currentDate.getFullYear() === today.getFullYear();
+                const dateObj = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+                return (
+                  <div key={day} className={`px-4 py-3 ${isToday ? 'bg-blue-500/10' : ''}`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`text-sm font-bold ${isToday ? 'text-blue-600' : 'text-foreground'}`}>
+                        {dateObj.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
+                      </span>
+                      {isToday && <Badge className="text-[10px] h-5">Today</Badge>}
+                    </div>
+                    {dayEvents.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No events</p>
+                    ) : (
+                      <ul className="space-y-1.5">
+                        {dayEvents.map((event) => (
+                          <li key={event._id} className="text-xs rounded-lg bg-brand-muted/50 text-brand px-2 py-1.5">
+                            <span className="font-semibold">{event.time}</span> — {event.title}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Tablet+: scrollable month grid */}
+            <div className="hidden md:block overflow-x-auto">
+              <div className="min-w-[560px]">
+            <div className="grid grid-cols-7 border-b border-border bg-muted/60">
+              {DAYS.map((day) => (
+                <div key={day} className="py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wide">{day}</div>
               ))}
             </div>
-            <div className="grid grid-cols-7 bg-white">
+            <div className="grid grid-cols-7 bg-card">
               {Array.from({ length: firstDayOfMonth }).map((_, i) => (
-                <div key={`empty-${i}`} className="min-h-[100px] border-b border-r border-slate-100 bg-slate-50/30" />
+                <div key={`empty-${i}`} className="min-h-[100px] border-b border-r border-border bg-muted/30" />
               ))}
               {Array.from({ length: daysInMonth }).map((_, i) => {
                 const day = i + 1;
                 const dayEvents = getEventsForDay(day);
-                const isToday = day === 15; // Hardcoded today for mock
-                
+                const isToday =
+                  day === today.getDate() &&
+                  currentDate.getMonth() === today.getMonth() &&
+                  currentDate.getFullYear() === today.getFullYear();
                 return (
-                  <div key={day} className={`min-h-[100px] p-2 border-b border-r border-slate-100 last:border-r-0 transition-colors hover:bg-slate-50 cursor-pointer ${isToday ? 'bg-blue-50/30' : ''}`}>
-                    <div className={`text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full mb-1 ${isToday ? 'bg-[#1C64F2] text-white' : 'text-slate-700'}`}>
-                      {day}
-                    </div>
+                  <div key={day} className={`min-h-[80px] lg:min-h-[100px] p-1.5 sm:p-2 border-b border-r border-border ${isToday ? 'bg-blue-500/10' : ''}`}>
+                    <div className={`text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full mb-1 ${isToday ? 'bg-blue-600 text-white' : 'text-foreground'}`}>{day}</div>
                     <div className="space-y-1">
-                      {dayEvents.map(event => (
-                        <div key={event.id} className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 truncate" title={event.title}>
-                          {event.time} - {event.title}
-                        </div>
+                      {dayEvents.map((event) => (
+                        <div key={event._id} className="text-[10px] font-medium px-1 py-0.5 rounded bg-brand-muted text-brand truncate">{event.time} - {event.title}</div>
                       ))}
                     </div>
                   </div>
                 );
               })}
             </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
-        {/* Upcoming Events List */}
-        <Card className="col-span-1 rounded-2xl border-slate-200 shadow-sm h-fit">
-          <CardHeader className="py-4 border-b border-slate-100">
-            <CardTitle className="text-lg font-bold text-slate-800">Upcoming Events</CardTitle>
+        <Card className="col-span-1 rounded-2xl border-border shadow-sm h-fit">
+          <CardHeader className="py-4 border-b border-border">
+            <CardTitle className="text-lg font-bold text-foreground">Upcoming Events</CardTitle>
           </CardHeader>
-          <CardContent className="p-0 divide-y divide-slate-100">
-            {MOCK_EVENTS.map(event => (
-              <div key={event.id} className="p-4 hover:bg-slate-50 transition-colors">
-                <div className="flex justify-between items-start mb-2">
-                  <h4 className="font-semibold text-slate-800">{event.title}</h4>
-                  <Badge variant="outline" className={`
-                    ${event.type === 'exam' ? 'border-red-200 text-red-700 bg-red-50' : ''}
-                    ${event.type === 'club' ? 'border-indigo-200 text-indigo-700 bg-indigo-50' : ''}
-                    ${event.type === 'assignment' ? 'border-amber-200 text-amber-700 bg-amber-50' : ''}
-                  `}>
-                    {event.type}
-                  </Badge>
-                </div>
-                <div className="flex flex-col gap-1.5 text-sm text-slate-500">
-                  <div className="flex items-center">
-                    <Clock className="h-3.5 w-3.5 mr-2" />
-                    {currentDate.toLocaleString('default', { month: 'short' })} {event.date}, {event.time}
+          <CardContent className="p-0 divide-y divide-border">
+            {events.length === 0 ? (
+              <p className="p-4 text-sm text-muted-foreground">No events this month.</p>
+            ) : (
+              events.map((event) => (
+                <div key={event._id} className="p-4 hover:bg-muted/50">
+                  <div className="flex justify-between items-start mb-2">
+                    <h4 className="font-semibold text-foreground">{event.title}</h4>
+                    <Badge variant="outline">{event.type}</Badge>
                   </div>
-                  <div className="flex items-center">
-                    <MapPin className="h-3.5 w-3.5 mr-2" />
-                    {event.location}
+                  <div className="flex flex-col gap-1.5 text-sm text-muted-foreground">
+                    <div className="flex items-center"><Clock className="h-3.5 w-3.5 mr-2" />{new Date(event.date).toLocaleDateString('en-IN')} · {event.time}</div>
+                    <div className="flex items-center"><MapPin className="h-3.5 w-3.5 mr-2" />{event.location}</div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </CardContent>
         </Card>
       </div>

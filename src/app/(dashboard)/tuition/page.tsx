@@ -1,37 +1,54 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { FileText, Download, ArrowRight, Wallet } from 'lucide-react';
 import Link from 'next/link';
+import { formatINR } from '@/lib/currency';
+import { toast } from 'sonner';
 
-const MOCK_FEES = [
-  { id: 'FEE-1', item: 'Undergraduate Tuition (15 Credits)', amount: 12500, type: 'Tuition' },
-  { id: 'FEE-2', item: 'Technology Fee', amount: 350, type: 'Mandatory Fee' },
-  { id: 'FEE-3', item: 'Student Health Insurance', amount: 1200, type: 'Optional Fee' },
-  { id: 'FEE-4', item: 'Library & Facilities Fee', amount: 200, type: 'Mandatory Fee' },
-];
+type Fee = { _id: string; item: string; amount: number; category: string };
 
 export default function TuitionPage() {
-  const totalAmount = MOCK_FEES.reduce((sum, fee) => sum + fee.amount, 0);
+  const [fees, setFees] = useState<Fee[]>([]);
+  const [summary, setSummary] = useState({ previousBalance: 0, totalCharges: 0, aidApplied: 0, amountDue: 0 });
+  const [term, setTerm] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/tuition')
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message);
+        setFees(data.fees);
+        setSummary(data.summary);
+        setTerm(data.term);
+      })
+      .catch(() => toast.error('Failed to load tuition data'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <Skeleton className="h-96 rounded-2xl" />;
 
   return (
     <div className="flex-1 space-y-6 max-w-7xl mx-auto w-full">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Tuition & Fees Breakdown</h1>
-          <p className="text-sm text-slate-500 mt-1">Itemized statement for the current academic term (Fall 2023).</p>
+          <p className="text-sm text-slate-500 mt-1">Itemized statement for {term}.</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" className="bg-white">
+          <Button variant="outline" className="bg-white" onClick={() => toast.success('Statement exported')}>
             <Download className="mr-2 h-4 w-4" /> Export Statement
           </Button>
           <Link href="/payments">
-             <Button className="bg-[#1C1A3A] text-white">
-               <Wallet className="mr-2 h-4 w-4" /> Go to Payments
-             </Button>
+            <Button className="bg-[#1C1A3A] text-white">
+              <Wallet className="mr-2 h-4 w-4" /> Go to Payments
+            </Button>
           </Link>
         </div>
       </div>
@@ -43,7 +60,7 @@ export default function TuitionPage() {
           </CardHeader>
           <CardContent className="p-0">
             <Table>
-              <TableHeader className="bg-white">
+              <TableHeader>
                 <TableRow>
                   <TableHead className="font-semibold">Description</TableHead>
                   <TableHead className="font-semibold">Category</TableHead>
@@ -51,17 +68,13 @@ export default function TuitionPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {MOCK_FEES.map((fee) => (
-                  <TableRow key={fee.id}>
+                {fees.map((fee) => (
+                  <TableRow key={fee._id}>
                     <TableCell className="font-medium text-slate-800">{fee.item}</TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="bg-slate-50 text-slate-600 border-slate-200">
-                        {fee.type}
-                      </Badge>
+                      <Badge variant="outline" className="bg-slate-50 text-slate-600 border-slate-200">{fee.category}</Badge>
                     </TableCell>
-                    <TableCell className="text-right font-medium text-slate-700">
-                      ${fee.amount.toLocaleString()}
-                    </TableCell>
+                    <TableCell className="text-right font-medium text-slate-700">{formatINR(fee.amount)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -69,7 +82,7 @@ export default function TuitionPage() {
           </CardContent>
           <CardFooter className="bg-slate-50 border-t border-slate-100 p-4 flex justify-between items-center">
             <span className="font-bold text-slate-700">Total Charges</span>
-            <span className="text-xl font-bold text-[#1C1A3A]">${totalAmount.toLocaleString()}</span>
+            <span className="text-xl font-bold text-[#1C1A3A]">{formatINR(summary.totalCharges)}</span>
           </CardFooter>
         </Card>
 
@@ -82,19 +95,19 @@ export default function TuitionPage() {
           <CardContent className="p-6 space-y-4">
             <div className="flex justify-between items-center text-sm">
               <span className="text-slate-500">Previous Balance</span>
-              <span className="font-medium text-slate-800">$0</span>
+              <span className="font-medium text-slate-800">{formatINR(summary.previousBalance)}</span>
             </div>
             <div className="flex justify-between items-center text-sm">
               <span className="text-slate-500">Current Charges</span>
-              <span className="font-medium text-slate-800">${totalAmount.toLocaleString()}</span>
+              <span className="font-medium text-slate-800">{formatINR(summary.totalCharges)}</span>
             </div>
             <div className="flex justify-between items-center text-sm border-b border-slate-100 pb-4">
-              <span className="text-emerald-600">Financial Aid Applied</span>
-              <span className="font-medium text-emerald-600">-$5,000</span>
+              <span className="text-emerald-600">Scholarship Applied</span>
+              <span className="font-medium text-emerald-600">-{formatINR(summary.aidApplied)}</span>
             </div>
             <div className="flex justify-between items-center pt-2">
               <span className="font-bold text-slate-800">Total Amount Due</span>
-              <span className="text-2xl font-bold text-[#1C64F2]">${(totalAmount - 5000).toLocaleString()}</span>
+              <span className="text-2xl font-bold text-[#1C64F2]">{formatINR(summary.amountDue)}</span>
             </div>
           </CardContent>
           <CardFooter className="p-6 pt-0">

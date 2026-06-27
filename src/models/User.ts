@@ -8,6 +8,7 @@ export interface IUser extends Document {
   branch?: string;
   semester?: number;
   image?: string;
+  entryToken?: string;
   role: 'student' | 'staff';
   createdAt: Date;
 }
@@ -21,6 +22,7 @@ const UserSchema = new Schema<IUser>(
     branch: { type: String },
     semester: { type: Number },
     image: { type: String },
+    entryToken: { type: String, unique: true, sparse: true },
     role: { type: String, enum: ['student', 'staff'], default: 'student' },
   },
   { timestamps: true }

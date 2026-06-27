@@ -2,8 +2,21 @@ import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import { randomUUID } from 'crypto';
 
-const ALLOWED_EXTENSIONS = new Set(['.pdf', '.doc', '.docx', '.zip', '.png', '.jpg', '.jpeg', '.txt']);
+const ALLOWED_EXTENSIONS = new Set(['.pdf', '.doc', '.docx', '.zip', '.png', '.jpg', '.jpeg', '.webp', '.txt']);
 const MAX_BYTES = 10 * 1024 * 1024;
+const IS_SERVERLESS = !!process.env.VERCEL;
+
+const MIME_BY_EXT: Record<string, string> = {
+  '.pdf': 'application/pdf',
+  '.doc': 'application/msword',
+  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  '.zip': 'application/zip',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.txt': 'text/plain',
+};
 
 export async function saveUpload(file: File, subdir: string) {
   if (!file || file.size === 0) {
@@ -21,6 +34,17 @@ export async function saveUpload(file: File, subdir: string) {
 
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
+
+  // Vercel serverless: ephemeral disk — store as data URL in MongoDB instead.
+  if (IS_SERVERLESS) {
+    const mime = file.type || MIME_BY_EXT[ext] || 'application/octet-stream';
+    const base64 = buffer.toString('base64');
+    return {
+      url: `data:${mime};base64,${base64}`,
+      fileName: file.name,
+    };
+  }
+
   const storedName = `${randomUUID()}${ext}`;
   const uploadDir = path.join(process.cwd(), 'public', 'uploads', subdir);
 

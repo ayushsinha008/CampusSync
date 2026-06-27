@@ -1,66 +1,91 @@
 'use client';
 
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { useEffect, useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { CreditCard, DollarSign, Download, PlusCircle, CheckCircle2 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { CreditCard, Download, PlusCircle, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { formatINR } from '@/lib/currency';
 
-const TRANSACTIONS = [
-  { id: 'TRX-9923', date: '2023-08-15', description: 'Fall Semester Tuition', amount: 12500, status: 'Paid' },
-  { id: 'TRX-9924', date: '2023-08-15', description: 'Housing Deposit', amount: 800, status: 'Paid' },
-  { id: 'TRX-10112', date: '2024-01-10', description: 'Spring Semester Tuition', amount: 12500, status: 'Pending' },
-  { id: 'TRX-10115', date: '2024-01-12', description: 'Library Fine', amount: 25, status: 'Pending' },
-];
+type PaymentRow = {
+  _id: string;
+  transactionId: string;
+  date: string;
+  description: string;
+  amount: number;
+  status: 'Paid' | 'Pending';
+};
 
 export default function PaymentsPage() {
-  const [transactions, setTransactions] = useState(TRANSACTIONS);
+  const [payments, setPayments] = useState<PaymentRow[]>([]);
+  const [pendingAmount, setPendingAmount] = useState(0);
+  const [dueDate, setDueDate] = useState('');
   const [isPaying, setIsPaying] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const pendingAmount = transactions
-    .filter(t => t.status === 'Pending')
-    .reduce((sum, t) => sum + t.amount, 0);
-
-  const handlePayNow = () => {
-    setIsPaying(true);
-    setTimeout(() => {
-      setTransactions(transactions.map(t => ({ ...t, status: 'Paid' })));
-      setIsPaying(false);
-      toast.success('Payment of $' + pendingAmount.toLocaleString() + ' processed successfully!');
-    }, 1500);
+  const loadPayments = () => {
+    fetch('/api/payments')
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message);
+        setPayments(data.payments);
+        setPendingAmount(data.pendingAmount);
+        setDueDate(data.dueDate);
+      })
+      .catch(() => toast.error('Failed to load payments'))
+      .finally(() => setLoading(false));
   };
+
+  useEffect(() => {
+    loadPayments();
+  }, []);
+
+  const handlePayNow = async () => {
+    setIsPaying(true);
+    try {
+      const res = await fetch('/api/payments', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+      setPayments(data.payments);
+      setPendingAmount(data.pendingAmount);
+      toast.success(`Payment of ${formatINR(pendingAmount)} processed successfully via UPI/Net Banking!`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Payment failed');
+    } finally {
+      setIsPaying(false);
+    }
+  };
+
+  if (loading) return <Skeleton className="h-96 rounded-2xl" />;
 
   return (
     <div className="flex-1 space-y-6 max-w-7xl mx-auto w-full">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Payments & Billing</h1>
-          <p className="text-sm text-slate-500 mt-1">Manage your student account balance and transaction history.</p>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Payments & Billing</h1>
+        <p className="text-sm text-slate-500 mt-1">Manage your student account balance and transaction history (INR).</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Balance Card */}
         <Card className="col-span-1 md:col-span-2 rounded-2xl border-slate-200 shadow-sm bg-[#1C1A3A] text-white">
           <CardContent className="p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
             <div>
               <p className="text-indigo-200 font-medium mb-1">Current Balance Due</p>
-              <h2 className="text-5xl font-bold tracking-tight">${pendingAmount.toLocaleString()}</h2>
-              <p className="text-sm text-indigo-300 mt-2">Due by January 30, 2024</p>
+              <h2 className="text-5xl font-bold tracking-tight">{formatINR(pendingAmount)}</h2>
+              <p className="text-sm text-indigo-300 mt-2">Due by {dueDate}</p>
             </div>
-            <Button 
-              className="bg-[#1C64F2] hover:bg-blue-600 text-white h-14 px-8 rounded-xl font-bold text-lg w-full md:w-auto shadow-lg shadow-blue-500/20"
+            <Button
+              className="bg-[#1C64F2] hover:bg-blue-600 text-white h-14 px-8 rounded-xl font-bold text-lg w-full md:w-auto"
               disabled={pendingAmount === 0 || isPaying}
               onClick={handlePayNow}
             >
-              {isPaying ? 'Processing...' : (pendingAmount === 0 ? 'All Settled' : 'Pay Now')}
+              {isPaying ? 'Processing...' : pendingAmount === 0 ? 'All Settled' : 'Pay Now'}
             </Button>
           </CardContent>
         </Card>
 
-        {/* Payment Methods */}
         <Card className="col-span-1 rounded-2xl border-slate-200 shadow-sm h-full">
           <CardHeader className="pb-3 border-b border-slate-100">
             <CardTitle className="text-lg font-bold text-slate-800 flex items-center">
@@ -70,10 +95,10 @@ export default function PaymentsPage() {
           <CardContent className="p-4 space-y-4">
             <div className="flex items-center justify-between p-3 border border-slate-200 rounded-xl bg-slate-50">
               <div className="flex items-center">
-                <div className="bg-slate-200 w-10 h-6 rounded mr-3 flex items-center justify-center text-[10px] font-bold text-slate-600">VISA</div>
+                <div className="bg-orange-100 w-10 h-6 rounded mr-3 flex items-center justify-center text-[9px] font-bold text-orange-700">UPI</div>
                 <div>
-                  <p className="text-sm font-semibold text-slate-800">•••• 4242</p>
-                  <p className="text-xs text-slate-500">Expires 12/25</p>
+                  <p className="text-sm font-semibold text-slate-800">ayush@upi</p>
+                  <p className="text-xs text-slate-500">Primary</p>
                 </div>
               </div>
               <CheckCircle2 className="h-5 w-5 text-emerald-500" />
@@ -85,7 +110,6 @@ export default function PaymentsPage() {
         </Card>
       </div>
 
-      {/* Transaction History */}
       <Card className="rounded-2xl border-slate-200 shadow-sm overflow-hidden">
         <CardHeader className="bg-slate-50 border-b border-slate-100 flex flex-row items-center justify-between py-4">
           <CardTitle className="text-lg font-bold text-slate-800">Transaction History</CardTitle>
@@ -97,7 +121,7 @@ export default function PaymentsPage() {
           <Table>
             <TableHeader className="bg-slate-50/50">
               <TableRow>
-                <TableHead className="w-[120px] font-semibold">Date</TableHead>
+                <TableHead className="font-semibold">Date</TableHead>
                 <TableHead className="font-semibold">Description</TableHead>
                 <TableHead className="font-semibold">Transaction ID</TableHead>
                 <TableHead className="text-right font-semibold">Amount</TableHead>
@@ -105,14 +129,12 @@ export default function PaymentsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {transactions.map((trx) => (
-                <TableRow key={trx.id}>
-                  <TableCell className="font-medium text-slate-600">{new Date(trx.date).toLocaleDateString()}</TableCell>
+              {payments.map((trx) => (
+                <TableRow key={trx._id}>
+                  <TableCell className="font-medium text-slate-600">{new Date(trx.date).toLocaleDateString('en-IN')}</TableCell>
                   <TableCell className="text-slate-800">{trx.description}</TableCell>
-                  <TableCell className="text-slate-500 text-xs font-mono">{trx.id}</TableCell>
-                  <TableCell className="text-right font-semibold text-slate-800">
-                    ${trx.amount.toLocaleString()}
-                  </TableCell>
+                  <TableCell className="text-slate-500 text-xs font-mono">{trx.transactionId}</TableCell>
+                  <TableCell className="text-right font-semibold text-slate-800">{formatINR(trx.amount)}</TableCell>
                   <TableCell className="text-right">
                     <Badge variant="outline" className={trx.status === 'Paid' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}>
                       {trx.status}

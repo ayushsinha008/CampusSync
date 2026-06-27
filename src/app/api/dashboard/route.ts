@@ -26,7 +26,7 @@ export async function GET() {
       ]);
 
       const recentStudents = await User.find({ role: 'student' })
-        .select('name email rollNumber branch semester createdAt')
+        .select('name email rollNumber branch semester image createdAt')
         .sort({ createdAt: -1 });
 
       return NextResponse.json({

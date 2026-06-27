@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { format, isPast } from 'date-fns';
 import { Upload, Download, Plus, Trash2, FileText, Clock, BookOpen } from 'lucide-react';
+import { AssignmentSectionCharts } from '@/components/admin/SectionChartBlocks';
 
 interface AssignmentItem {
   _id: string;
@@ -335,6 +336,16 @@ export default function AssignmentsPage() {
               </Card>
             );
           })}
+        </div>
+      )}
+
+      {isStaff && (
+        <div className="pt-4 border-t border-slate-200 space-y-4">
+          <div>
+            <h2 className="text-lg font-bold text-[#1E293B]">Submission Analytics</h2>
+            <p className="text-sm text-slate-500 mt-0.5">Charts based on assignment submission data</p>
+          </div>
+          <AssignmentSectionCharts />
         </div>
       )}
     </div>

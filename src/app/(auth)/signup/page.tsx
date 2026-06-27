@@ -8,8 +8,11 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Hexagon, ArrowLeft } from 'lucide-react';
 import { AuthRoleInfo } from '@/components/AuthRoleInfo';
+import { CampusSyncLogo } from '@/components/CampusSyncLogo';
+import { authInputClassName } from '@/lib/auth-ui';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import { ArrowLeft } from 'lucide-react';
 
 export default function SignupPage() {
   const [step, setStep] = useState(1);
@@ -71,17 +74,16 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#F6F7FB]">
-      <header className="flex h-[100px] items-center justify-between px-8 md:px-20 pt-4">
-        <Link href="/" className="flex items-center gap-3 font-extrabold text-[24px] text-slate-800 tracking-tight">
-          <div className="bg-[#1C1A3A] text-white p-2 rounded-[12px]">
-            <Hexagon className="h-6 w-6 fill-current" />
-          </div>
-          CampusSync
-        </Link>
-        <Link href="/" className="flex items-center gap-2 text-[14px] font-bold text-slate-500 hover:text-slate-800 transition-colors">
-          <ArrowLeft className="h-4 w-4" /> Back to Home
-        </Link>
+    <div className="flex flex-col min-h-screen bg-page">
+      <header className="flex flex-col gap-3 sm:flex-row sm:h-[100px] sm:items-center sm:justify-between px-4 sm:px-8 md:px-20 pt-4 pb-2 sm:pb-0">
+        <CampusSyncLogo href="/" size="md" className="self-start sm:hidden" />
+        <CampusSyncLogo href="/" size="lg" className="hidden sm:flex self-start" />
+        <div className="flex items-center gap-3 self-end sm:self-auto">
+          <ThemeToggle />
+          <Link href="/" className="flex items-center gap-2 text-[13px] sm:text-[14px] font-bold text-muted-foreground hover:text-foreground transition-colors">
+            <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">Back to </span>Home
+          </Link>
+        </div>
       </header>
 
       <div className="flex-1 flex items-center justify-center p-4 pb-20">
@@ -120,7 +122,7 @@ export default function SignupPage() {
                       placeholder="John Doe"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      className="h-12 rounded-xl bg-[#FAFAFB] border-slate-200 px-4 text-[14px] focus-visible:ring-1 focus-visible:ring-indigo-500 placeholder:text-slate-400 font-medium"
+                      className={authInputClassName}
                       required
                     />
                   </div>
@@ -132,7 +134,7 @@ export default function SignupPage() {
                       placeholder="student@college.edu"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="h-12 rounded-xl bg-[#FAFAFB] border-slate-200 px-4 text-[14px] focus-visible:ring-1 focus-visible:ring-indigo-500 placeholder:text-slate-400 font-medium"
+                      className={authInputClassName}
                       required
                     />
                   </div>
@@ -144,7 +146,7 @@ export default function SignupPage() {
                       placeholder="••••••••"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="h-12 rounded-xl bg-[#FAFAFB] border-slate-200 px-4 text-[14px] focus-visible:ring-1 focus-visible:ring-indigo-500 placeholder:text-slate-400 font-medium"
+                      className={authInputClassName}
                       required
                     />
                   </div>
@@ -178,7 +180,7 @@ export default function SignupPage() {
                       placeholder="Enter 6-digit OTP"
                       value={otp}
                       onChange={(e) => setOtp(e.target.value)}
-                      className="h-12 rounded-xl bg-[#FAFAFB] border-slate-200 px-4 text-[14px] text-center tracking-[0.5em] focus-visible:ring-1 focus-visible:ring-indigo-500 placeholder:text-slate-300 font-bold"
+                      className={`${authInputClassName} text-center tracking-[0.5em] font-bold`}
                       required
                       maxLength={6}
                     />

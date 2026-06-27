@@ -3,10 +3,11 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import bcrypt from 'bcryptjs';
+import { randomUUID } from 'crypto';
 import { normalizeEmail } from '@/lib/auth-session';
+import { getNextAuthSecret, getStaffPasswordForAuth } from '@/lib/env';
 
 const STAFF_EMAIL = normalizeEmail(process.env.STAFF_EMAIL || 'staff@campus.sync');
-const STAFF_PASSWORD = process.env.STAFF_PASSWORD || 'password123';
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -26,13 +27,14 @@ export const authOptions: NextAuthOptions = {
 
         let user = await User.findOne({ email });
 
-        if (!user && email === STAFF_EMAIL && credentials.password === STAFF_PASSWORD) {
-          const hashedPassword = await bcrypt.hash(STAFF_PASSWORD, 10);
+        if (!user && email === STAFF_EMAIL && credentials.password === getStaffPasswordForAuth()) {
+          const hashedPassword = await bcrypt.hash(getStaffPasswordForAuth(), 10);
           user = await User.create({
-            name: 'Admin Staff',
+            name: 'Campus Admin',
             email: STAFF_EMAIL,
             password: hashedPassword,
             role: 'staff',
+            entryToken: randomUUID(),
           });
         }
 
@@ -64,10 +66,19 @@ export const authOptions: NextAuthOptions = {
     maxAge: 30 * 24 * 60 * 60,
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
         token.role = ((user as { role?: string }).role || 'student') as 'student' | 'staff';
+        token.name = user.name;
+        token.email = user.email;
+        token.picture = user.image;
+      }
+      if (trigger === 'update' && session) {
+        const data = session as { name?: string; email?: string; image?: string };
+        if (data.name) token.name = data.name;
+        if (data.email) token.email = data.email;
+        if (data.image) token.picture = data.image;
       }
       return token;
     },
@@ -75,6 +86,9 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as 'student' | 'staff';
+        session.user.name = token.name as string;
+        session.user.email = token.email as string;
+        session.user.image = (token.picture as string) || null;
       }
       return session;
     },
@@ -82,5 +96,5 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: '/login',
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: getNextAuthSecret(),
 };
