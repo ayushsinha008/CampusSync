@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -28,11 +27,6 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
-
-  useEffect(() => {
-    fetch('/api/auth/flush-session', { method: 'POST' }).catch(() => undefined);
-  }, []);
 
   const switchMode = (next: LoginMode) => {
     setMode(next);
@@ -43,8 +37,6 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
-    await fetch('/api/auth/flush-session', { method: 'POST' }).catch(() => undefined);
 
     const res = await signIn('credentials', {
       redirect: false,
@@ -60,8 +52,9 @@ export default function LoginPage() {
       );
     } else {
       toast.success('Logged in successfully');
-      router.push('/dashboard');
-      router.refresh();
+      // Full navigation so middleware sees the new session cookie immediately.
+      window.location.assign('/dashboard');
+      return;
     }
     setLoading(false);
   };
@@ -87,6 +80,13 @@ export default function LoginPage() {
           className="w-full max-w-[440px]"
         >
           <div className="bg-card rounded-[32px] border border-border shadow-sm p-8 md:p-10">
+            <div className="mb-5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-[12px] leading-relaxed text-foreground">
+              <p className="font-bold text-amber-700 dark:text-amber-400">Site error / 494?</p>
+              <p className="mt-1 text-muted-foreground">
+                Browser cookies are too large. Clear site data for this URL (lock icon → Cookies → Remove),
+                or open in <span className="font-semibold">Incognito</span> (Ctrl+Shift+N), then login again.
+              </p>
+            </div>
             <div className="mb-6 text-center">
               <h2 className="text-[28px] font-bold text-heading tracking-tight">Welcome Back</h2>
               <p className="text-[14px] text-muted-foreground mt-2 font-medium">

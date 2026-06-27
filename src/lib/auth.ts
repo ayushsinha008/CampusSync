@@ -2,13 +2,37 @@ import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
+import AuthSession from '@/models/AuthSession';
 import bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
 import { normalizeEmail } from '@/lib/auth-session';
 import { getNextAuthSecret, getStaffPasswordForAuth } from '@/lib/env';
+import { sessionCookie } from '@/lib/session-cookie';
 
 const STAFF_EMAIL = normalizeEmail(process.env.STAFF_EMAIL || 'staff@campus.sync');
-const isProd = process.env.NODE_ENV === 'production';
+const SESSION_MAX_AGE = 30 * 24 * 60 * 60;
+
+async function loadSessionUser(sid: string) {
+  await connectDB();
+  const record = await AuthSession.findOne({ sid, expiresAt: { $gt: new Date() } });
+  if (!record) return null;
+  const user = await User.findById(record.userId).select('name email image role');
+  if (!user) return null;
+  return {
+    id: user._id.toString(),
+    name: user.name,
+    email: user.email,
+    role: user.role as 'student' | 'staff',
+  };
+}
+
+async function createSession(userId: string) {
+  await connectDB();
+  const sid = randomUUID();
+  const expiresAt = new Date(Date.now() + SESSION_MAX_AGE * 1000);
+  await AuthSession.create({ sid, userId, expiresAt });
+  return sid;
+}
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -63,46 +87,48 @@ export const authOptions: NextAuthOptions = {
   ],
   session: {
     strategy: 'jwt',
-    maxAge: 30 * 24 * 60 * 60,
+    maxAge: SESSION_MAX_AGE,
   },
   cookies: {
-    sessionToken: {
-      name: isProd ? '__Secure-campussync.sid' : 'campussync.sid',
-      options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: isProd,
-      },
-    },
+    sessionToken: sessionCookie,
   },
   callbacks: {
-    async jwt({ token, user, trigger, session }) {
+    async jwt({ token, user }) {
       if (user) {
-        token.uid = user.id;
-        token.role = ((user as { role?: string }).role || 'student') as 'student' | 'staff';
-        token.name = user.name;
-        token.email = user.email;
-      }
-      if (trigger === 'update' && session) {
-        const data = session as { name?: string };
-        if (data.name) token.name = data.name;
+        const sid = await createSession(user.id);
+        return { sid };
       }
 
-      delete token.picture;
-      delete token.id;
+      if (typeof token.sid === 'string') {
+        return { sid: token.sid };
+      }
 
-      return token;
+      return {};
     },
     async session({ session, token }) {
-      if (session.user) {
-        session.user.id = (token.uid as string) || (token.sub as string);
-        session.user.role = token.role as 'student' | 'staff';
-        session.user.name = (token.name as string) || session.user.name;
-        session.user.email = (token.email as string) || session.user.email || '';
-        session.user.image = null;
+      if (!token.sid || typeof token.sid !== 'string') {
+        return session;
       }
+
+      const user = await loadSessionUser(token.sid);
+      if (!user) {
+        return session;
+      }
+
+      session.user.id = user.id;
+      session.user.role = user.role;
+      session.user.name = user.name;
+      session.user.email = user.email;
+      session.user.image = null;
       return session;
+    },
+  },
+  events: {
+    async signOut({ token }) {
+      if (token?.sid && typeof token.sid === 'string') {
+        await connectDB();
+        await AuthSession.deleteOne({ sid: token.sid });
+      }
     },
   },
   pages: {

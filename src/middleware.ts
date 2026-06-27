@@ -1,8 +1,12 @@
 import { withAuth } from 'next-auth/middleware';
+import { sessionCookie } from '@/lib/session-cookie';
 
 export default withAuth({
   pages: {
     signIn: '/login',
+  },
+  cookies: {
+    sessionToken: sessionCookie,
   },
 });
 

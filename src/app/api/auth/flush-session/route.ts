@@ -1,12 +1,7 @@
 import { NextResponse } from 'next/server';
+import { LEGACY_SESSION_COOKIE_BASES } from '@/lib/session-cookie';
 
-const SESSION_COOKIE_BASES = [
-  'next-auth.session-token',
-  '__Secure-next-auth.session-token',
-  '__Host-next-auth.session-token',
-  'campussync.sid',
-  '__Secure-campussync.sid',
-];
+const SESSION_COOKIE_BASES = LEGACY_SESSION_COOKIE_BASES;
 
 function expireCookie(res: NextResponse, name: string) {
   const secure = name.startsWith('__Secure') || name.startsWith('__Host');
