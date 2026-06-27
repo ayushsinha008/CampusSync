@@ -12,20 +12,6 @@ import { sessionCookie } from '@/lib/session-cookie';
 const STAFF_EMAIL = normalizeEmail(process.env.STAFF_EMAIL || 'staff@campus.sync');
 const SESSION_MAX_AGE = 30 * 24 * 60 * 60;
 
-async function loadSessionUser(sid: string) {
-  await connectDB();
-  const record = await AuthSession.findOne({ sid, expiresAt: { $gt: new Date() } });
-  if (!record) return null;
-  const user = await User.findById(record.userId).select('name email image role');
-  if (!user) return null;
-  return {
-    id: user._id.toString(),
-    name: user.name,
-    email: user.email,
-    role: user.role as 'student' | 'staff',
-  };
-}
-
 async function createSession(userId: string) {
   await connectDB();
   const sid = randomUUID();
@@ -96,29 +82,36 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         const sid = await createSession(user.id);
-        return { sid };
+        return {
+          sid,
+          uid: user.id,
+          role: ((user as { role?: string }).role || 'student') as 'student' | 'staff',
+          name: user.name,
+          email: user.email,
+        };
       }
 
-      if (typeof token.sid === 'string') {
-        return { sid: token.sid };
+      if (typeof token.sid === 'string' && token.uid) {
+        return {
+          sid: token.sid,
+          uid: token.uid,
+          role: token.role,
+          name: token.name,
+          email: token.email,
+        };
       }
 
       return {};
     },
     async session({ session, token }) {
-      if (!token.sid || typeof token.sid !== 'string') {
+      if (!token.uid || typeof token.uid !== 'string') {
         return session;
       }
 
-      const user = await loadSessionUser(token.sid);
-      if (!user) {
-        return session;
-      }
-
-      session.user.id = user.id;
-      session.user.role = user.role;
-      session.user.name = user.name;
-      session.user.email = user.email;
+      session.user.id = token.uid;
+      session.user.role = (token.role as 'student' | 'staff') || 'student';
+      session.user.name = (token.name as string) ?? session.user.name;
+      session.user.email = (token.email as string) ?? session.user.email ?? '';
       session.user.image = null;
       return session;
     },

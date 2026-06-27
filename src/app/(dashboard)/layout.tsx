@@ -1,18 +1,10 @@
 import { DashboardShell } from '@/components/DashboardShell';
-import { getServerSession } from 'next-auth/next';
-import { redirect } from 'next/navigation';
-import { authOptions } from '@/lib/auth';
 
-export default async function DashboardLayout({
+export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getServerSession(authOptions);
-
-  if (!session) {
-    redirect('/login');
-  }
-
+  // Middleware already guards these routes; avoid blocking navigation on session DB lookups.
   return <DashboardShell>{children}</DashboardShell>;
 }
