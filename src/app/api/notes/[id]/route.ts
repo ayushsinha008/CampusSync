@@ -1,26 +1,29 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import Note from '@/models/Note';
+import { requireAuth } from '@/lib/auth-session';
 
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
+    const { session, error } = await requireAuth();
+    if (error) return error;
 
     await connectDB();
-    const note = await Note.findOneAndDelete({ _id: id, userId: session.user.id });
+
+    const filter =
+      session!.user.role === 'staff'
+        ? { _id: id }
+        : { _id: id, userId: session!.user.id };
+
+    const note = await Note.findOneAndDelete(filter);
 
     if (!note) {
       return NextResponse.json({ message: 'Note not found' }, { status: 404 });
     }
 
     return NextResponse.json({ message: 'Deleted successfully' });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ message: 'Error deleting note' }, { status: 500 });
   }
 }

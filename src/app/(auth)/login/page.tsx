@@ -10,19 +10,13 @@ import { toast } from 'sonner';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Hexagon, ArrowLeft } from 'lucide-react';
+import { AuthRoleInfo } from '@/components/AuthRoleInfo';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-
-  const handleDemoLogin = (role: 'student' | 'staff') => {
-    const demoEmail = role === 'staff' ? 'staff@campus.sync' : 'student@campus.sync';
-    const demoPassword = 'password123';
-    setEmail(demoEmail);
-    setPassword(demoPassword);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,7 +29,7 @@ export default function LoginPage() {
     });
 
     if (res?.error) {
-      toast.error('Invalid credentials');
+      toast.error('Invalid email or password');
     } else {
       toast.success('Logged in successfully');
       router.push('/dashboard');
@@ -46,7 +40,6 @@ export default function LoginPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F6F7FB]">
-      {/* Top Navbar */}
       <header className="flex h-[100px] items-center justify-between px-8 md:px-20 pt-4">
         <Link href="/" className="flex items-center gap-3 font-extrabold text-[24px] text-slate-800 tracking-tight">
           <div className="bg-[#1C1A3A] text-white p-2 rounded-[12px]">
@@ -59,7 +52,6 @@ export default function LoginPage() {
         </Link>
       </header>
 
-      {/* Login Content */}
       <div className="flex-1 flex items-center justify-center p-4 pb-20">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -74,34 +66,6 @@ export default function LoginPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="grid grid-cols-2 gap-3 mb-6">
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  className="w-full rounded-xl border-slate-200 text-slate-600 font-bold hover:bg-slate-50 h-11"
-                  onClick={() => handleDemoLogin('student')}
-                >
-                  Demo Student
-                </Button>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  className="w-full rounded-xl border-slate-200 text-slate-600 font-bold hover:bg-slate-50 h-11"
-                  onClick={() => handleDemoLogin('staff')}
-                >
-                  Demo Staff
-                </Button>
-              </div>
-
-              <div className="relative mb-6">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t border-slate-100" />
-                </div>
-                <div className="relative flex justify-center text-[11px] uppercase font-bold text-slate-400">
-                  <span className="bg-white px-3 tracking-wider">Or continue with</span>
-                </div>
-              </div>
-
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-[13px] font-bold text-slate-700 ml-1">Email Address</Label>
                 <Input
@@ -130,17 +94,19 @@ export default function LoginPage() {
                 />
               </div>
 
-              <Button className="w-full h-12 rounded-xl bg-[#1C1A3A] hover:bg-[#2D2B52] text-white font-bold text-[15px] mt-6 transition-all" type="submit" disabled={loading}>
+              <Button className="w-full h-12 rounded-xl bg-[#1C1A3A] hover:bg-[#2D2B52] text-white font-bold text-[15px] mt-2 transition-all" type="submit" disabled={loading}>
                 {loading ? 'Logging in...' : 'Login'}
               </Button>
-              
-              <div className="text-[13px] text-center font-semibold text-slate-500 mt-6 pt-2">
+
+              <div className="text-[13px] text-center font-semibold text-slate-500 pt-2">
                 Don&apos;t have an account?{' '}
                 <Link href="/signup" className="text-[#1C64F2] hover:text-blue-700">
                   Sign up now
                 </Link>
               </div>
             </form>
+
+            <AuthRoleInfo />
           </div>
         </motion.div>
       </div>

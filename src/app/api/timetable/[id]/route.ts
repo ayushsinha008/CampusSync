@@ -1,16 +1,13 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import Timetable from '@/models/Timetable';
+import { requireStaff } from '@/lib/auth-session';
 
-export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user || (session.user as any).role !== 'staff') {
-      return NextResponse.json({ message: 'Unauthorized: Staff access required' }, { status: 403 });
-    }
+    const { error } = await requireStaff();
+    if (error) return error;
 
     await connectDB();
     const timetable = await Timetable.findOneAndDelete({ _id: id });
@@ -20,7 +17,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     }
 
     return NextResponse.json({ message: 'Deleted successfully' });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ message: 'Error deleting timetable slot' }, { status: 500 });
   }
 }

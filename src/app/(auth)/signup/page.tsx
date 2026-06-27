@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Hexagon, ArrowLeft } from 'lucide-react';
+import { AuthRoleInfo } from '@/components/AuthRoleInfo';
 
 export default function SignupPage() {
   const [step, setStep] = useState(1);
@@ -37,7 +38,7 @@ export default function SignupPage() {
         const data = await res.json();
         toast.error(data.message || 'Something went wrong');
       }
-    } catch (error) {
+    } catch {
       toast.error('An error occurred');
     } finally {
       setLoading(false);
@@ -62,7 +63,7 @@ export default function SignupPage() {
         const data = await res.json();
         toast.error(data.message || 'Invalid OTP');
       }
-    } catch (error) {
+    } catch {
       toast.error('An error occurred');
     } finally {
       setLoading(false);
@@ -71,7 +72,6 @@ export default function SignupPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F6F7FB]">
-      {/* Top Navbar */}
       <header className="flex h-[100px] items-center justify-between px-8 md:px-20 pt-4">
         <Link href="/" className="flex items-center gap-3 font-extrabold text-[24px] text-slate-800 tracking-tight">
           <div className="bg-[#1C1A3A] text-white p-2 rounded-[12px]">
@@ -84,7 +84,6 @@ export default function SignupPage() {
         </Link>
       </header>
 
-      {/* Signup Content */}
       <div className="flex-1 flex items-center justify-center p-4 pb-20">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -96,7 +95,9 @@ export default function SignupPage() {
             <div className="mb-8 text-center">
               <h2 className="text-[28px] font-bold text-[#111827] tracking-tight">Create Account</h2>
               <p className="text-[14px] text-slate-500 mt-2 font-medium">
-                {step === 1 ? 'Join CampusSync to manage your student life.' : 'Enter the 6-digit OTP sent to your email.'}
+                {step === 1
+                  ? 'Students: sign up with email OTP verification.'
+                  : 'Enter the 6-digit OTP sent to your email.'}
               </p>
             </div>
 
@@ -148,11 +149,11 @@ export default function SignupPage() {
                     />
                   </div>
 
-                  <Button className="w-full h-12 rounded-xl bg-[#1C1A3A] hover:bg-[#2D2B52] text-white font-bold text-[15px] mt-6 transition-all" type="submit" disabled={loading}>
+                  <Button className="w-full h-12 rounded-xl bg-[#1C1A3A] hover:bg-[#2D2B52] text-white font-bold text-[15px] mt-2 transition-all" type="submit" disabled={loading}>
                     {loading ? 'Sending OTP...' : 'Continue'}
                   </Button>
-                  
-                  <div className="text-[13px] text-center font-semibold text-slate-500 mt-6 pt-2">
+
+                  <div className="text-[13px] text-center font-semibold text-slate-500 pt-2">
                     Already have an account?{' '}
                     <Link href="/login" className="text-[#1C64F2] hover:text-blue-700">
                       Log in here
@@ -182,8 +183,8 @@ export default function SignupPage() {
                       maxLength={6}
                     />
                   </div>
-                  
-                  <div className="flex flex-col gap-3 mt-6">
+
+                  <div className="flex flex-col gap-3 mt-2">
                     <Button className="w-full h-12 rounded-xl bg-[#1C64F2] hover:bg-blue-700 text-white font-bold text-[15px] transition-all" type="submit" disabled={loading}>
                       {loading ? 'Verifying...' : 'Verify & Create Account'}
                     </Button>
@@ -200,6 +201,8 @@ export default function SignupPage() {
                 </motion.form>
               )}
             </AnimatePresence>
+
+            {step === 1 && <AuthRoleInfo />}
           </div>
         </motion.div>
       </div>

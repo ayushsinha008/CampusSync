@@ -1,33 +1,28 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import Timetable from '@/models/Timetable';
+import { requireAuth, requireStaff } from '@/lib/auth-session';
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
+    const { session, error } = await requireAuth();
+    if (error) return error;
 
     await connectDB();
-    const timetables = await Timetable.find({})
+    const timetables = await Timetable.find()
       .populate('subjectId')
-      .sort({ startTime: 1 });
-      
+      .sort({ day: 1, startTime: 1 });
+
     return NextResponse.json(timetables);
-  } catch (error) {
+  } catch {
     return NextResponse.json({ message: 'Error fetching timetable' }, { status: 500 });
   }
 }
 
 export async function POST(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user || (session.user as any).role !== 'staff') {
-      return NextResponse.json({ message: 'Unauthorized: Staff access required' }, { status: 403 });
-    }
+    const { session, error } = await requireStaff();
+    if (error) return error;
 
     const { subjectId, day, startTime, endTime } = await req.json();
 
@@ -37,7 +32,7 @@ export async function POST(req: Request) {
 
     await connectDB();
     const timetable = await Timetable.create({
-      userId: session.user.id,
+      userId: session!.user.id,
       subjectId,
       day,
       startTime,
@@ -45,7 +40,7 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json(timetable, { status: 201 });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ message: 'Error creating timetable slot' }, { status: 500 });
   }
 }

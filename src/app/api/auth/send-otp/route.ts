@@ -3,9 +3,14 @@ import connectDB from '@/lib/mongodb';
 import Otp from '@/models/Otp';
 import User from '@/models/User';
 import { sendEmail } from '@/lib/sendEmail';
+import { normalizeEmail } from '@/lib/auth-session';
+import crypto from 'crypto';
+
+const STAFF_EMAIL = normalizeEmail(process.env.STAFF_EMAIL || 'staff@campus.sync');
+const OTP_COOLDOWN_MS = 60 * 1000;
 
 function generateOTP() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  return crypto.randomInt(100000, 999999).toString();
 }
 
 export async function POST(req: Request) {
@@ -16,23 +21,28 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: 'Email is required' }, { status: 400 });
     }
 
-    await connectDB();
+    const normalizedEmail = normalizeEmail(email);
 
-    // Check if user already exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return NextResponse.json({ message: 'User already exists' }, { status: 400 });
+    if (normalizedEmail === STAFF_EMAIL) {
+      return NextResponse.json({ message: 'Staff accounts cannot be created via Sign Up. Use staff login credentials.' }, { status: 403 });
     }
 
-    // Generate and save OTP
-    const otp = generateOTP();
-    
-    // Delete any existing OTP for this email
-    await Otp.deleteMany({ email });
-    
-    await Otp.create({ email, otp });
+    await connectDB();
 
-    // Send email
+    const existingUser = await User.findOne({ email: normalizedEmail });
+    if (existingUser) {
+      return NextResponse.json({ message: 'An account with this email already exists. Please log in instead.' }, { status: 409 });
+    }
+
+    const recentOtp = await Otp.findOne({ email: normalizedEmail }).sort({ createdAt: -1 });
+    if (recentOtp && Date.now() - new Date(recentOtp.createdAt).getTime() < OTP_COOLDOWN_MS) {
+      return NextResponse.json({ message: 'Please wait a minute before requesting another OTP.' }, { status: 429 });
+    }
+
+    const otp = generateOTP();
+    await Otp.deleteMany({ email: normalizedEmail });
+    await Otp.create({ email: normalizedEmail, otp });
+
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <h2>CampusSync Verification</h2>
@@ -42,7 +52,7 @@ export async function POST(req: Request) {
       </div>
     `;
 
-    await sendEmail(email, 'Your CampusSync Verification OTP', html);
+    await sendEmail(normalizedEmail, 'Your CampusSync Verification OTP', html);
 
     return NextResponse.json({ message: 'OTP sent successfully' }, { status: 200 });
   } catch (error) {

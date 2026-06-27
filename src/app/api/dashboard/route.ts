@@ -1,61 +1,92 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
 import connectDB from '@/lib/mongodb';
-import Task from '@/models/Task';
+import Assignment from '@/models/Assignment';
+import AssignmentSubmission from '@/models/AssignmentSubmission';
 import Notice from '@/models/Notice';
-import Subject from '@/models/Subject';
 import Timetable from '@/models/Timetable';
+import User from '@/models/User';
+import { requireAuth } from '@/lib/auth-session';
+import { getSubjectsWithAttendance } from '@/lib/student-data';
 
-export async function GET(req: Request) {
+export async function GET() {
   try {
-    const session = await getServerSession();
-    if (!session || !session.user) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
+    const { session, error } = await requireAuth();
+    if (error) return error;
 
     await connectDB();
-    const userId = (session.user as any).id;
+    const userId = session!.user.id;
+    const isStaff = session!.user.role === 'staff';
 
-    // Get tasks due soon
-    const tasksDue = await Task.countDocuments({ userId, completed: false });
+    if (isStaff) {
+      const [studentCount, assignmentCount, noticeCount, classCount] = await Promise.all([
+        User.countDocuments({ role: 'student' }),
+        Assignment.countDocuments(),
+        Notice.countDocuments(),
+        Timetable.countDocuments(),
+      ]);
 
-    // Get attendance stats
-    const subjects = await Subject.find({ userId });
+      const recentStudents = await User.find({ role: 'student' })
+        .select('name email rollNumber branch semester createdAt')
+        .sort({ createdAt: -1 });
+
+      return NextResponse.json({
+        stats: {
+          studentCount,
+          assignmentCount,
+          noticeCount,
+          classCount,
+        },
+        recentStudents,
+      });
+    }
+
+    const totalAssignments = await Assignment.countDocuments();
+    const submittedCount = await AssignmentSubmission.countDocuments({ studentId: userId });
+    const assignmentsPending = Math.max(totalAssignments - submittedCount, 0);
+
+    const subjects = await getSubjectsWithAttendance(userId);
+
     let totalClasses = 0;
     let totalAttendance = 0;
-    subjects.forEach(sub => {
+    subjects.forEach((sub) => {
       totalClasses += sub.totalClasses;
       totalAttendance += sub.attendance;
     });
-    const attendancePercentage = totalClasses > 0 ? Math.round((totalAttendance / totalClasses) * 100) : 100;
+    const attendancePercentage =
+      totalClasses > 0 ? Math.round((totalAttendance / totalClasses) * 100) : 100;
 
-    // Get new notices
-    const newNoticesCount = await Notice.countDocuments({ userId });
-
-    // Get today's schedule
+    const newNoticesCount = await Notice.countDocuments();
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const today = days[new Date().getDay()];
-    
-    const todaySchedule = await Timetable.find({ userId, day: today })
+
+    const todaySchedule = await Timetable.find({ day: today })
       .populate('subjectId')
       .sort({ startTime: 1 });
 
-    const upcomingTasks = await Task.find({ userId, completed: false })
-      .sort({ deadline: 1 })
-      .limit(3);
+    const upcomingAssignments = await Assignment.find()
+      .sort({ dueDate: 1 })
+      .limit(3)
+      .lean();
+
+    const submissions = await AssignmentSubmission.find({ studentId: userId }).lean();
+    const submittedIds = new Set(submissions.map((s) => s.assignmentId.toString()));
 
     return NextResponse.json({
       stats: {
-        tasksDue,
+        assignmentsPending,
         attendancePercentage,
         newNoticesCount,
         upcomingClasses: todaySchedule.length,
+        activeSubjects: subjects.length,
       },
       todaySchedule,
-      upcomingTasks
-    }, { status: 200 });
-
-  } catch (error) {
+      upcomingAssignments: upcomingAssignments.map((a) => ({
+        ...a,
+        submitted: submittedIds.has(a._id.toString()),
+      })),
+      subjects,
+    });
+  } catch {
     return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
   }
 }

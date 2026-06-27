@@ -3,6 +3,10 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import bcrypt from 'bcryptjs';
+import { normalizeEmail } from '@/lib/auth-session';
+
+const STAFF_EMAIL = normalizeEmail(process.env.STAFF_EMAIL || 'staff@campus.sync');
+const STAFF_PASSWORD = process.env.STAFF_PASSWORD || 'password123';
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -17,23 +21,23 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Please provide all required fields');
         }
 
+        const email = normalizeEmail(credentials.email);
         await connectDB();
 
-        let user = await User.findOne({ email: credentials.email });
+        let user = await User.findOne({ email });
 
-        // Auto-create demo accounts if they don't exist
+        if (!user && email === STAFF_EMAIL && credentials.password === STAFF_PASSWORD) {
+          const hashedPassword = await bcrypt.hash(STAFF_PASSWORD, 10);
+          user = await User.create({
+            name: 'Admin Staff',
+            email: STAFF_EMAIL,
+            password: hashedPassword,
+            role: 'staff',
+          });
+        }
+
         if (!user) {
-          if (credentials.email === 'staff@campus.sync' || credentials.email === 'student@campus.sync') {
-            const hashedPassword = await bcrypt.hash(credentials.password, 10);
-            user = await User.create({
-              name: credentials.email === 'staff@campus.sync' ? 'Admin Staff' : 'Demo Student',
-              email: credentials.email,
-              password: hashedPassword,
-              role: credentials.email === 'staff@campus.sync' ? 'staff' : 'student',
-            });
-          } else {
-            throw new Error('Invalid email or password');
-          }
+          throw new Error('Invalid email or password');
         }
 
         if (!user.password) {
@@ -41,7 +45,6 @@ export const authOptions: NextAuthOptions = {
         }
 
         const isMatch = await bcrypt.compare(credentials.password, user.password);
-
         if (!isMatch) {
           throw new Error('Invalid email or password');
         }
@@ -58,19 +61,20 @@ export const authOptions: NextAuthOptions = {
   ],
   session: {
     strategy: 'jwt',
+    maxAge: 30 * 24 * 60 * 60,
   },
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.role = (user as any).role;
+        token.role = ((user as { role?: string }).role || 'student') as 'student' | 'staff';
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        (session.user as any).id = token.id;
-        (session.user as any).role = token.role;
+        session.user.id = token.id as string;
+        session.user.role = token.role as 'student' | 'staff';
       }
       return session;
     },

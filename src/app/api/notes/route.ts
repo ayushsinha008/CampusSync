@@ -1,47 +1,52 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import Note from '@/models/Note';
+import { requireAuth } from '@/lib/auth-session';
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
+    const { session, error } = await requireAuth();
+    if (error) return error;
 
     await connectDB();
-    const notes = await Note.find({ userId: session.user.id }).sort({ updatedAt: -1 });
+
+    const filter =
+      session!.user.role === 'staff'
+        ? {}
+        : { userId: session!.user.id };
+
+    const notes = await Note.find(filter).sort({ updatedAt: -1 });
     return NextResponse.json(notes);
-  } catch (error) {
+  } catch {
     return NextResponse.json({ message: 'Error fetching notes' }, { status: 500 });
   }
 }
 
 export async function POST(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    const { session, error } = await requireAuth();
+    if (error) return error;
+
+    if (session!.user.role === 'staff') {
+      return NextResponse.json({ message: 'Staff cannot create student notes here.' }, { status: 403 });
     }
 
     const { title, content, category } = await req.json();
 
-    if (!title || !content) {
+    if (!title?.trim() || !content?.trim()) {
       return NextResponse.json({ message: 'Title and content are required' }, { status: 400 });
     }
 
     await connectDB();
     const note = await Note.create({
-      userId: session.user.id,
-      title,
-      content,
+      userId: session!.user.id,
+      title: title.trim(),
+      content: content.trim(),
       category: category || 'Uncategorized',
     });
 
     return NextResponse.json(note, { status: 201 });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ message: 'Error creating note' }, { status: 500 });
   }
 }
